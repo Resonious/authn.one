@@ -1,19 +1,20 @@
-# Template: worker-typescript
+# authn.one
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/worker-typescript)
+Webauthn is really great, but not super easy to implement. This is a service that makes it dead simple.
 
-A batteries included template for kick starting a TypeScript Cloudflare worker project.
+What's the catch? Well, you have to trust us! That's why the project is open source. More eyeballs, etc. Additionally, you can self host.
 
-## Setup
+## Dev
 
-To create a `my-project` directory using this template, run:
+```bash
+# Get your code here.
+git clone https://github.com/Resonious/authn.one.git
+cd auth.one
+npm install
 
-```sh
-$ npm init cloudflare my-project worker-typescript
-# or
-$ yarn create cloudflare my-project worker-typescript
-# or
-$ pnpm create cloudflare my-project worker-typescript
+# The frontend is built as a separate esbuild bundle.
+node ./build.mjs &
+
+# The backend is Cloudflare Workers.
+npm run dev
 ```
-
-> **Note:** Each command invokes [`create-cloudflare`](https://www.npmjs.com/package/create-cloudflare) for project creation.
