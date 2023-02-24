@@ -1,4 +1,7 @@
-import { getAssetFromKV, NotFoundError } from '@cloudflare/kv-asset-handler'
+import { getAssetFromKV, NotFoundError } from '@cloudflare/kv-asset-handler';
+import { SessionInit } from './session';
+export { Session } from './session';
+export { Website } from './website';
 
 /*****************************************
  * BEGIN Cloudflare Sites boilerplate
@@ -22,8 +25,31 @@ function assetOptions(env, rest) {
  *****************************************/
 
 export default {
-	async fetch(request: Request, env: any, ctx: ExecutionContext) {
-		if (request.url.endsWith('/test')) {
+	async fetch(request: Request, env: AuthnOneEnv, ctx: ExecutionContext) {
+		const url = new URL(request.url);
+
+		// POST /challenge
+		// requested by <authn-one> element when signing in
+		if (request.method === 'POST' && url.pathname === '/challenge') {
+			const origin = request.headers.get('origin');
+			if (!origin) throw new Error('No origin in challenge request');
+
+			const sessionID = env.SESSION.newUniqueId();
+			const session = env.SESSION.get(sessionID);
+			const init: SessionInit = { challenge: sessionID.toString(), origin };
+			await session.fetch('https://session/init', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(init)
+			}).then(throwOnFail);
+
+			return allowCors(new Response(JSON.stringify({
+				challenge: sessionID.toString()
+			}), { status: 200 }));
+		}
+
+		// GET/POST /test
+		if (url.pathname === '/test') {
 			// Dump headers for testing..
 			let headersString = '';
 			for (const [key, value] of request.headers) {
@@ -33,29 +59,39 @@ export default {
 			return new Response(headersString);
 		}
 
+		// everything else
 		return await handleBrowserRequest(request, env, ctx);
 	},
 };
 
-async function handleBrowserRequest(request: Request, env: any, ctx: ExecutionContext) {
+async function handleBrowserRequest(request: Request, env: AuthnOneEnv, ctx: ExecutionContext) {
+  const url = new URL(request.url);
   const assetURL = new URL(request.url);
 
-	const secFetchDest = request.headers.get('sec-fetch-dest');
-	if (secFetchDest === 'script') {
-		assetURL.pathname = '/login.js';
-	} else {
-		assetURL.pathname = '/example.html';
-	}
-
-	const evt = {
+	const evt = () => ({
     request: new Request(assetURL.toString(), request),
     waitUntil: ctx.waitUntil.bind(ctx)
-  };
+  });
 
 	try {
-		const response = await getAssetFromKV(evt, assetOptions(env, undefined));
-		response.headers.append('Access-Control-Allow-Origin', '*');
-		return response;
+		const secFetchDest = request.headers.get('sec-fetch-dest');
+
+		if (url.pathname === '/' && secFetchDest === 'script') {
+			assetURL.pathname = '/login.js';
+			let host = `${assetURL.protocol}//${assetURL.host}`;
+
+			const response = await getAssetFromKV(evt(), assetOptions(env, undefined));
+			const js = await response.text();
+      const js2 = js.replace('{{ AUTHN_ONE }}', host);
+			return allowCors(new Response(js2, response));
+		}
+
+		else if (url.pathname === '/') {
+			assetURL.pathname = '/example.html';
+			return await getAssetFromKV(evt(), assetOptions(env, undefined));
+		}
+
+    return await getAssetFromKV(evt(), assetOptions(env, undefined));
 	} catch (e) {
 		if (e instanceof NotFoundError) {
 			return new Response('Path not found: ' + assetURL.pathname, { status: 404 });
@@ -63,4 +99,16 @@ async function handleBrowserRequest(request: Request, env: any, ctx: ExecutionCo
 			return new Response(e.message || e.toString(), { status: 500 });
 		}
 	}
+}
+
+function throwOnFail(response: Response) {
+	if (response.status >= 300) {
+		throw new Error(`Request to ${response.url} failed with status ${response.status}`);
+	}
+	return response;
+}
+
+function allowCors(response: Response) {
+	response.headers.set('Access-Control-Allow-Origin', '*');
+	return response;
 }

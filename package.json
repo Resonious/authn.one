@@ -14,6 +14,7 @@
 		"wrangler": "^2.1.14"
 	},
 	"dependencies": {
-		"@cloudflare/kv-asset-handler": "^0.3.0"
+		"@cloudflare/kv-asset-handler": "^0.3.0",
+		"@passwordless-id/webauthn": "^1.2.0"
 	}
 }
