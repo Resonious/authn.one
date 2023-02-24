@@ -2,7 +2,9 @@ import * as esbuild from 'esbuild';
 import { promises as fs } from 'fs';
 
 fs.readdir('bundles').then(async (files) => {
-  const entryPoints = files.filter((file) => file.endsWith('.ts')).map((file) => `bundles/${file}`);
+  const entryPoints = files
+    .filter((file) => file.endsWith('.ts'))
+    .map((file) => `bundles/${file}`);
   const esbuildArgs = {
     entryPoints,
     bundle: true,

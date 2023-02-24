@@ -5,4 +5,5 @@
 *.log
 
 /dist
-/fdist
+/fdist/*.js
+/fdist/*.js.map
