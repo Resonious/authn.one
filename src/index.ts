@@ -1,6 +1,6 @@
 import { getAssetFromKV, NotFoundError } from '@cloudflare/kv-asset-handler';
 import { server } from '@passwordless-id/webauthn';
-import { Session, SessionInit } from './session';
+import { SessionInit } from './session';
 export { User } from './user';
 export { Session } from './session';
 export { Website } from './website';

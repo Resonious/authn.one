@@ -41,7 +41,7 @@ export class Session implements DurableObject {
         this.state.storage.get<string>('email'),
         this.state.storage.get<string>('challenge'),
         this.state.storage.get<string>('origin'),
-      ])
+      ]);
       if (!email || !challenge || !origin) {
         return new Response('{"error":"session not yet initialized"}', { status: 404 });
       }
