@@ -27,14 +27,14 @@ function assetOptions(env, rest) {
  *****************************************/
 
 export default {
-	async fetch(request: Request, env: AuthnOneEnv, ctx: ExecutionContext) {
-		const url = new URL(request.url);
+  async fetch(request: Request, env: AuthnOneEnv, ctx: ExecutionContext) {
+    const url = new URL(request.url);
 
-		// POST /challenge
-		// requested by <authn-one> element when signing in
-		if (request.method === 'POST' && url.pathname === '/challenge') {
-			const origin = request.headers.get('origin');
-			if (!origin) throw new Error('No origin in challenge request');
+    // POST /challenge
+    // requested by <authn-one> element when signing in
+    if (request.method === 'POST' && url.pathname === '/challenge') {
+      const origin = request.headers.get('origin');
+      if (!origin) throw new Error('No origin in challenge request');
       const { email } = await request.json() as { email?: string };
       if (!email) throw new Error('No email in challenge request');
 
@@ -42,12 +42,12 @@ export default {
       const userID = env.USER.idFromName(email);
       const user = env.USER.get(userID);
 
-			const sessionID = env.SESSION.newUniqueId();
+      const sessionID = env.SESSION.newUniqueId();
       const challenge = sessionID.toString();
-			const session = env.SESSION.get(sessionID);
-			const sessionInit: SessionInit = { email, challenge, origin };
+      const session = env.SESSION.get(sessionID);
+      const sessionInit: SessionInit = { email, challenge, origin };
 
-			const [existingUser, _] = await Promise.all([
+      const [existingUser, _] = await Promise.all([
         // See if there is an existing user for this website
         user.fetch('https://user/info', {
           method: 'GET',
@@ -61,24 +61,24 @@ export default {
         }).then(throwOnFail('session/init')),
       ]);
 
-			return allowCors(new Response(JSON.stringify({
-				challenge,
+      return allowCors(new Response(JSON.stringify({
+        challenge,
         existingUser
-			}), { status: 200 }));
-		}
+      }), { status: 200 }));
+    }
 
-		// POST /register
-		// requested by <authn-one> element when registering
-		if (request.method === 'POST' && url.pathname === '/register') {
-			const origin = request.headers.get('origin');
-			if (!origin) throw new Error('No origin in register request');
+    // POST /register
+    // requested by <authn-one> element when registering
+    if (request.method === 'POST' && url.pathname === '/register') {
+      const origin = request.headers.get('origin');
+      if (!origin) throw new Error('No origin in register request');
       const { challenge, registration } = await request.json() as {
         challenge: string,
         registration: RegistrationEncoded
       };
 
-			const sessionID = env.SESSION.idFromString(challenge);
-			const session = env.SESSION.get(sessionID);
+      const sessionID = env.SESSION.idFromString(challenge);
+      const session = env.SESSION.get(sessionID);
       const sessionInfo = session.fetch('https://session/consume', {
         method: 'POST'
       }).then(r => r.json()) as Promise<SessionInit & { error: string }>;
@@ -110,57 +110,57 @@ export default {
       }
     }
 
-		// GET/POST /test
-		if (url.pathname === '/test') {
-			// Dump headers for testing..
-			let headersString = '';
-			for (const [key, value] of request.headers) {
-				headersString += `${key}: ${value}\n`
-			}
+    // GET/POST /test
+    if (url.pathname === '/test') {
+      // Dump headers for testing..
+      let headersString = '';
+      for (const [key, value] of request.headers) {
+        headersString += `${key}: ${value}\n`
+      }
 
-			return new Response(headersString);
-		}
+      return new Response(headersString);
+    }
 
-		// everything else
-		return await handleBrowserRequest(request, env, ctx);
-	},
+    // everything else
+    return await handleBrowserRequest(request, env, ctx);
+  },
 };
 
 async function handleBrowserRequest(request: Request, env: AuthnOneEnv, ctx: ExecutionContext) {
   const url = new URL(request.url);
   const assetURL = new URL(request.url);
 
-	const evt = () => ({
+  const evt = () => ({
     request: new Request(assetURL.toString(), request),
     waitUntil: ctx.waitUntil.bind(ctx)
   });
 
-	try {
-		const secFetchDest = request.headers.get('sec-fetch-dest');
+  try {
+    const secFetchDest = request.headers.get('sec-fetch-dest');
 
-		if (url.pathname === '/' && secFetchDest === 'script') {
-			assetURL.pathname = '/login.js';
-			let host = `${assetURL.protocol}//${assetURL.host}`;
+    if (url.pathname === '/' && secFetchDest === 'script') {
+      assetURL.pathname = '/login.js';
+      let host = `${assetURL.protocol}//${assetURL.host}`;
 
-			const response = await getAssetFromKV(evt(), assetOptions(env, undefined));
-			const js = await response.text();
+      const response = await getAssetFromKV(evt(), assetOptions(env, undefined));
+      const js = await response.text();
       const js2 = js.replace('{{ AUTHN_ONE }}', host);
-			return allowCors(new Response(js2, response));
-		}
+      return allowCors(new Response(js2, response));
+    }
 
-		else if (url.pathname === '/') {
-			assetURL.pathname = '/example.html';
-			return await getAssetFromKV(evt(), assetOptions(env, undefined));
-		}
+    else if (url.pathname === '/') {
+      assetURL.pathname = '/example.html';
+      return await getAssetFromKV(evt(), assetOptions(env, undefined));
+    }
 
     return await getAssetFromKV(evt(), assetOptions(env, undefined));
-	} catch (e) {
-		if (e instanceof NotFoundError) {
-			return new Response('Path not found: ' + assetURL.pathname, { status: 404 });
-		} else if (e instanceof Error) {
-			return new Response(e.message || e.toString(), { status: 500 });
-		}
-	}
+  } catch (e) {
+    if (e instanceof NotFoundError) {
+      return new Response('Path not found: ' + assetURL.pathname, { status: 404 });
+    } else if (e instanceof Error) {
+      return new Response(e.message || e.toString(), { status: 500 });
+    }
+  }
 }
 
 function throwOnFail(name: string, threshold: number = 300) {
@@ -173,6 +173,6 @@ function throwOnFail(name: string, threshold: number = 300) {
 }
 
 function allowCors(response: Response) {
-	response.headers.set('Access-Control-Allow-Origin', '*');
-	return response;
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  return response;
 }
