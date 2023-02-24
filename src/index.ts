@@ -1,6 +1,6 @@
 import { getAssetFromKV, NotFoundError } from '@cloudflare/kv-asset-handler';
 import { server } from '@passwordless-id/webauthn';
-import { SessionInit } from './session';
+import { Session, SessionInit } from './session';
 export { User } from './user';
 export { Session } from './session';
 export { Website } from './website';
@@ -66,6 +66,44 @@ export default {
         existingUser
 			}), { status: 200 }));
 		}
+
+		// POST /register
+		// requested by <authn-one> element when registering
+		if (request.method === 'POST' && url.pathname === '/register') {
+			const origin = request.headers.get('origin');
+			if (!origin) throw new Error('No origin in register request');
+      const { challenge, registration } = await request.json() as {
+        challenge: string,
+        registration: RegistrationEncoded
+      };
+
+			const sessionID = env.SESSION.idFromString(challenge);
+			const session = env.SESSION.get(sessionID);
+      const sessionInfo = session.fetch('https://session/consume', {
+        method: 'POST'
+      }).then(r => r.json()) as Promise<SessionInit & { error: string }>;
+      const checkAgainstSession = (field: keyof SessionInit) => async (arg: string) => {
+        const info = await sessionInfo;
+        if (info.error) return false;
+        if (info[field] !== arg) return false;
+        return true;
+      }
+
+      try {
+        // verifyRegistration throws an error when the check fails
+        await server.verifyRegistration(registration, {
+          challenge: checkAgainstSession('challenge'),
+          origin: checkAgainstSession('origin'),
+        });
+
+        // Great, so the registration is valid.
+
+        return new Response(JSON.stringify({ result: 'Registration succeeded! TODO: actually save user data?' }), { status: 200 });
+      } catch (e) {
+        console.error(e);
+        return new Response(JSON.stringify({ error: 'Registration failed' }), { status: 400 });
+      }
+    }
 
 		// GET/POST /test
 		if (url.pathname === '/test') {

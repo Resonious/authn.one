@@ -11,13 +11,16 @@ export class Session implements DurableObject {
   constructor(state: DurableObjectState, env: AuthnOneEnv) {
     this.state = state;
     this.env = env;
+
+    // Self destruct after 24 hours of inactivity
+    state.storage.getAlarm().then(alarm => {
+      if (alarm) return;
+      state.storage.setAlarm(Date.now() + 24 * 60 * 60 * 1000);
+    });
   }
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
-
-    // Self destruct after 24 hours of inactivity
-    this.state.storage.setAlarm(Date.now() + 24 * 60 * 60 * 1000);
 
     // POST /init
     // sets the challenge nonce and origin for this session
@@ -29,6 +32,26 @@ export class Session implements DurableObject {
         this.state.storage.put('origin', origin),
       ]);
       return new Response('', { status: 204 });
+    }
+
+    // POST /consume
+    // returns everything set by /init and destroys the session
+    if (request.method === 'GET' && url.pathname === '/info') {
+      const [ email, challenge, origin ] = await Promise.all([
+        this.state.storage.get<string>('email'),
+        this.state.storage.get<string>('challenge'),
+        this.state.storage.get<string>('origin'),
+      ])
+      if (!email || !challenge || !origin) {
+        return new Response('{"error":"session not yet initialized"}', { status: 404 });
+      }
+
+      // Self destruct
+      this.state.storage.setAlarm(Date.now());
+
+      return new Response(JSON.stringify({
+        email, challenge, origin
+      }), { status: 200 });
     }
 
     return new Response('{"error":"unknown path"}', { status: 404 });

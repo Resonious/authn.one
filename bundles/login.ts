@@ -9,21 +9,23 @@ class AuthnOneElement extends HTMLElement {
     shadowRoot.innerHTML = `
       <style>
         :host {
+          font-family: sans-serif;
           display: block;
           padding: 25px;
           color: var(--authn-one-text-color, #000);
         }
       </style>
-      <h2>Authn One</h2>
-      <input id="email" type="email">
-      <button id="sign-in">Sign In</button>
-      <slot></slot>
+      <form id="form">
+        <input id="email" type="email">
+        <button type="submit" id="sign-in">Sign In</button>
+      </form>
     `;
-    shadowRoot.getElementById('sign-in')!
-              .addEventListener('click', this.signIn.bind(this, shadowRoot));
+    shadowRoot.getElementById('form')!
+              .addEventListener('submit', this.signin.bind(this, shadowRoot));
   }
 
-  async signIn(root: ShadowRoot) {
+  async signin(root: ShadowRoot, event: SubmitEvent) {
+    event.preventDefault();
     if (!client.isAvailable()) {
       alert("Your browser doesn't support the security features required to sign in.");
       return;
@@ -45,6 +47,11 @@ class AuthnOneElement extends HTMLElement {
         authenticatorType: 'both',
       });
       console.log('SUCCESS!!!!!!!');
+      const registerResult = await authnFetch('/register', {
+        method: 'POST',
+        body: JSON.stringify({ challenge, registration }),
+      }).then(r => r.json());
+      console.log(registerResult)
     }
   }
 }
