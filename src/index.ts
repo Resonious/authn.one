@@ -1,5 +1,7 @@
 import { getAssetFromKV, NotFoundError } from '@cloudflare/kv-asset-handler';
+import { server } from '@passwordless-id/webauthn';
 import { SessionInit } from './session';
+export { User } from './user';
 export { Session } from './session';
 export { Website } from './website';
 
@@ -33,18 +35,35 @@ export default {
 		if (request.method === 'POST' && url.pathname === '/challenge') {
 			const origin = request.headers.get('origin');
 			if (!origin) throw new Error('No origin in challenge request');
+      const { email } = await request.json() as { email?: string };
+      if (!email) throw new Error('No email in challenge request');
+
+      // TODO: multiple email per user would make sense, so we should use KV to map email to user id
+      const userID = env.USER.idFromName(email);
+      const user = env.USER.get(userID);
 
 			const sessionID = env.SESSION.newUniqueId();
+      const challenge = sessionID.toString();
 			const session = env.SESSION.get(sessionID);
-			const init: SessionInit = { challenge: sessionID.toString(), origin };
-			await session.fetch('https://session/init', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify(init)
-			}).then(throwOnFail);
+			const sessionInit: SessionInit = { email, challenge, origin };
+
+			const [existingUser, _] = await Promise.all([
+        // See if there is an existing user for this website
+        user.fetch('https://user/info', {
+          method: 'GET',
+        }).then(throwOnFail('user/info', 500)).then(r => r.json()),
+
+        // Start a new session
+        session.fetch('https://session/init', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(sessionInit)
+        }).then(throwOnFail('session/init')),
+      ]);
 
 			return allowCors(new Response(JSON.stringify({
-				challenge: sessionID.toString()
+				challenge,
+        existingUser
 			}), { status: 200 }));
 		}
 
@@ -101,11 +120,13 @@ async function handleBrowserRequest(request: Request, env: AuthnOneEnv, ctx: Exe
 	}
 }
 
-function throwOnFail(response: Response) {
-	if (response.status >= 300) {
-		throw new Error(`Request to ${response.url} failed with status ${response.status}`);
-	}
-	return response;
+function throwOnFail(name: string, threshold: number = 300) {
+  return (response: Response) => {
+    if (response.status >= threshold) {
+      throw new Error(`Request to ${name} failed with status ${response.status}`);
+    }
+    return response;
+  }
 }
 
 function allowCors(response: Response) {

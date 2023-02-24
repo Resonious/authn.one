@@ -1,6 +1,6 @@
 import { client } from '@passwordless-id/webauthn';
 
-const AUTHN_ONE = '{{ AUTHN_ONE }}';
+const AUTHN_ONE = '{{ AUTHN_ONE }}                                   '.trim();
 
 class AuthnOneElement extends HTMLElement {
   constructor() {
@@ -31,15 +31,31 @@ class AuthnOneElement extends HTMLElement {
     const email = root.getElementById('email')! as HTMLInputElement;
     const origin = new URL(window.location.href).host;
 
-    const { challenge } = await authnFetch('/challenge', { method: 'POST' }).then(r => r.json());
-    const registration = await client.register(email.value, challenge, { debug: true });
-    console.log(registration);
+    const { existingUser, challenge } = await authnFetch('/challenge', {
+      method: 'POST',
+      body: JSON.stringify({ email: email.value })
+    }).then(r => r.json());
+
+    if (existingUser) {
+      alert('Oh I know you...');
+    }
+    else {
+      const registration = await client.register(email.value, challenge, {
+        debug: true,
+        authenticatorType: 'both',
+      });
+      console.log('SUCCESS!!!!!!!');
+    }
   }
 }
 
 function authnFetch(path, request: RequestInit) {
   return fetch(`${AUTHN_ONE}${path}`, {
     ...request,
+    headers: {
+      'content-type': 'application/json',
+      ...request.headers
+    },
     mode: 'cors',
     credentials: 'omit',
   });

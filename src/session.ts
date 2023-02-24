@@ -1,4 +1,5 @@
 export type SessionInit = {
+  email: string,
   challenge: string,
   origin: string,
 }
@@ -21,15 +22,16 @@ export class Session implements DurableObject {
     // POST /init
     // sets the challenge nonce and origin for this session
     if (request.method === 'POST' && url.pathname === '/init') {
-      const { challenge, origin } = await request.json() as SessionInit;
+      const { email, challenge, origin } = await request.json() as SessionInit;
       await Promise.all([
+        this.state.storage.put('email', email),
         this.state.storage.put('challenge', challenge),
         this.state.storage.put('origin', origin),
       ]);
       return new Response('', { status: 204 });
     }
 
-    return new Response('???', { status: 404 });
+    return new Response('{"error":"unknown path"}', { status: 404 });
   }
 
   // Self-destruct on alarm!!

@@ -5,10 +5,11 @@ site = { bucket = "./fdist" }
 
 [durable_objects]
 bindings = [
+  {name = "USER", class_name = "User"},
   {name = "SESSION", class_name = "Session"},
   {name = "WEBSITE", class_name = "Website"}
 ]
 
 [[migrations]]
 tag = "v1"
-new_classes = ["Session", "Website"]
+new_classes = ["User", "Session", "Website"]

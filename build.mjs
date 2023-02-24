@@ -9,8 +9,8 @@ fs.readdir('bundles').then(async (files) => {
     entryPoints,
     bundle: true,
     outdir: 'fdist',
-    minify: false,
-    sourcemap: false,
+    minify: true,
+    sourcemap: true,
   };
 
   // If args has --watch then watch, else just build
