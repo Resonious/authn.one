@@ -2,6 +2,7 @@ export type SessionInit = {
   email: string,
   challenge: string,
   origin: string,
+  verify: 'inprogress' | 'unnecessary' | 'success',
 }
 
 export class Session implements DurableObject {
@@ -12,10 +13,10 @@ export class Session implements DurableObject {
     this.state = state;
     this.env = env;
 
-    // Self destruct after 24 hours of inactivity
+    // Self destruct after 1 hour
     state.storage.getAlarm().then(alarm => {
       if (alarm) return;
-      state.storage.setAlarm(Date.now() + 24 * 60 * 60 * 1000);
+      state.storage.setAlarm(Date.now() + 60 * 60 * 1000);
     });
   }
 
@@ -25,11 +26,26 @@ export class Session implements DurableObject {
     // POST /init
     // sets the challenge nonce and origin for this session
     if (request.method === 'POST' && url.pathname === '/init') {
-      const { email, challenge, origin } = await request.json() as SessionInit;
+      const { email, challenge, origin, verify } = await request.json() as SessionInit;
       await Promise.all([
         this.state.storage.put('email', email),
         this.state.storage.put('challenge', challenge),
         this.state.storage.put('origin', origin),
+        this.state.storage.put('verify', verify),
+      ]);
+      return new Response('', { status: 204 });
+    }
+
+    // POST /verify
+    // marks the session as verified
+    if (request.method === 'POST' && url.pathname === '/verify') {
+      const verify = await this.state.storage.get<string>('verify');
+      if (!verify || verify === 'unnecessary') {
+        return new Response('{"error":"bad verify"}', { status: 400 });
+      }
+
+      await Promise.all([
+        this.state.storage.put('verify', 'success'),
       ]);
       return new Response('', { status: 204 });
     }
@@ -37,10 +53,11 @@ export class Session implements DurableObject {
     // POST /consume
     // returns everything set by /init and destroys the session
     if (request.method === 'POST' && url.pathname === '/consume') {
-      const [ email, challenge, origin ] = await Promise.all([
+      const [ email, challenge, origin, verify ] = await Promise.all([
         this.state.storage.get<string>('email'),
         this.state.storage.get<string>('challenge'),
         this.state.storage.get<string>('origin'),
+        this.state.storage.get<string>('verify'),
       ]);
       if (!email || !challenge || !origin) {
         return new Response('{"error":"session not yet initialized"}', { status: 404 });
@@ -50,7 +67,7 @@ export class Session implements DurableObject {
       this.state.storage.setAlarm(Date.now());
 
       return new Response(JSON.stringify({
-        email, challenge, origin
+        email, challenge, origin, verify
       }), { status: 200 });
     }
 

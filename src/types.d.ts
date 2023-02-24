@@ -1,7 +1,9 @@
 interface AuthnOneEnv {
+  USERS: KVNamespace,
   USER: DurableObjectNamespace,
   SESSION: DurableObjectNamespace,
   WEBSITE: DurableObjectNamespace,
+  APP_HOST: string,
 }
 
 // Pasted in from passwordless-id because they don't export their own types

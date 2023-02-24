@@ -1,7 +1,7 @@
 export interface UserInfo {
   id: string,
-  email: string,
-  lastVerifiedAt: number,
+  emails: string[],
+  lastVerifiedAt: number | null,
 }
 
 export class User implements DurableObject {
@@ -11,6 +11,11 @@ export class User implements DurableObject {
   constructor(state: DurableObjectState, env: AuthnOneEnv) {
     this.state = state;
     this.env = env;
+
+    // Initialize data
+    state.storage.get<string[]>('emails').then(emails => {
+      if (!emails) state.storage.put('emails', []);
+    });
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -28,4 +33,13 @@ export class User implements DurableObject {
   }
 
   // TODO self destruct if not verified after awhile?
+}
+
+export async function getUserFromEmail(email: string, env: AuthnOneEnv): Promise<DurableObjectStub | null> {
+  const emailHash = crypto.subtle.digest('SHA-256', new TextEncoder().encode(email));
+  const emailHashB64 = btoa(String.fromCharCode(...new Uint8Array(await emailHash)));
+
+  const userID = await env.USERS.get(`email:${emailHashB64}`);
+  if (!userID) return null;
+  return env.USER.get(await env.USER.idFromString(userID));
 }

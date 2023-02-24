@@ -1,6 +1,8 @@
 import { getAssetFromKV, NotFoundError } from '@cloudflare/kv-asset-handler';
 import { server } from '@passwordless-id/webauthn';
 import { SessionInit } from './session';
+import { getUserFromEmail, UserInfo } from './user';
+
 export { User } from './user';
 export { Session } from './session';
 export { Website } from './website';
@@ -10,6 +12,7 @@ export { Website } from './website';
  *****************************************/
 // @ts-ignore
 import manifestJSON from '__STATIC_CONTENT_MANIFEST'
+import { sendVerificationEmail } from './email';
 const assetManifest = JSON.parse(manifestJSON)
 
 // @ts-ignore
@@ -26,6 +29,12 @@ function assetOptions(env, rest) {
  * END Cloudflare Sites boilerplate
  *****************************************/
 
+export type PostChallengeResponse = {
+  challenge: string,
+  existingUser: UserInfo | null,
+  verify: SessionInit['verify'],
+}
+
 export default {
   async fetch(request: Request, env: AuthnOneEnv, ctx: ExecutionContext) {
     const url = new URL(request.url);
@@ -38,37 +47,42 @@ export default {
       const { email } = await request.json() as { email?: string };
       if (!email) throw new Error('No email in challenge request');
 
-      // TODO: multiple email per user would make sense, so we should use KV to map email to user id
-      const userID = env.USER.idFromName(email);
-      const user = env.USER.get(userID);
+      const existingUser = await getUserFromEmail(email, env)
+        .then(user => user && user.fetch('https://user/info', { method: 'GET', }))
+        .then(throwOnFail('user/info', 500))
+        .then(r => r && r.json<UserInfo | null>());
 
-      const sessionID = env.SESSION.newUniqueId();
-      const challenge = sessionID.toString();
+      const challenge = crypto.randomUUID();
+      const sessionID = env.SESSION.idFromName(challenge);
       const session = env.SESSION.get(sessionID);
-      const sessionInit: SessionInit = { email, challenge, origin };
+      const sessionInit: SessionInit = {
+        email, challenge, origin,
+        verify: existingUser?.lastVerifiedAt ? 'unnecessary' : 'inprogress'
+      };
 
-      const [existingUser, _] = await Promise.all([
-        // See if there is an existing user for this website
-        user.fetch('https://user/info', {
-          method: 'GET',
-        }).then(throwOnFail('user/info', 500)).then(r => r.json()),
+      // Start a new session
+      await session.fetch('https://session/init', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(sessionInit)
+      }).then(throwOnFail('session/init'));
 
-        // Start a new session
-        session.fetch('https://session/init', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(sessionInit)
-        }).then(throwOnFail('session/init')),
-      ]);
+      // Send verification email
+      if (sessionInit.verify === 'inprogress') {
+        sendVerificationEmail(env.APP_HOST, email, sessionID);
+      }
 
-      return allowCors(new Response(JSON.stringify({
+      const response: PostChallengeResponse = {
         challenge,
-        existingUser
-      }), { status: 200 }));
+        existingUser,
+        verify: sessionInit.verify
+      }
+      return allowCors(new Response(JSON.stringify(response), { status: 200 }));
     }
 
     // POST /register
     // requested by <authn-one> element when registering
+    // TODO: make sure this does not happen until user is already verified
     if (request.method === 'POST' && url.pathname === '/register') {
       const origin = request.headers.get('origin');
       if (!origin) throw new Error('No origin in register request');
@@ -77,11 +91,15 @@ export default {
         registration: RegistrationEncoded
       };
 
-      const sessionID = env.SESSION.idFromString(challenge);
+      const sessionID = env.SESSION.idFromName(challenge);
       const session = env.SESSION.get(sessionID);
       const sessionInfo = session.fetch('https://session/consume', {
         method: 'POST'
       }).then(r => r.json()) as Promise<SessionInit & { error: string }>;
+
+      // TODO: don't consume the session here - let the implementer's server do that.
+      // ALSO: make sure verification is done before creating any users.
+
       const checkAgainstSession = (field: keyof SessionInit) => async (arg: string) => {
         const info = await sessionInfo;
         if (info.error) return false;
@@ -108,6 +126,18 @@ export default {
         console.error(e);
         return new Response(JSON.stringify({ error: 'Registration failed' }), { status: 400 });
       }
+    }
+
+    // GET /verify
+    // Linked to in verification email. Visiting this marks the user (and session) as verified.
+    if (request.method === 'GET' && url.pathname === '/verify') {
+      const sessionID = url.searchParams.get('session');
+      if (!sessionID) return new Response("You may have followed a bad link!", { status: 404 });
+
+      const session = env.SESSION.get(env.SESSION.idFromString(sessionID));
+      const response = await session.fetch('https://session/verify', { method: 'POST' });
+      if (response.status >= 300) return new Response("You may have followed a bad link!", { status: 404 });
+      return new Response("You're verified! You may close this window now.");
     }
 
     // GET/POST /test
@@ -164,8 +194,8 @@ async function handleBrowserRequest(request: Request, env: AuthnOneEnv, ctx: Exe
 }
 
 function throwOnFail(name: string, threshold: number = 300) {
-  return (response: Response) => {
-    if (response.status >= threshold) {
+  return (response: Response | null) => {
+    if (response && response.status >= threshold) {
       throw new Error(`Request to ${name} failed with status ${response.status}`);
     }
     return response;
