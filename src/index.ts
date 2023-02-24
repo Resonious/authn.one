@@ -90,13 +90,18 @@ export default {
       }
 
       try {
+        sessionInfo.then(info => {
+          console.log(info);
+        })
+
         // verifyRegistration throws an error when the check fails
         await server.verifyRegistration(registration, {
           challenge: checkAgainstSession('challenge'),
           origin: checkAgainstSession('origin'),
         });
 
-        // Great, so the registration is valid.
+        // Great, so the registration is valid. Can return the user ID to frontend.
+        // TODO actually fetch user id here. also make sure everything is secure...
 
         return new Response(JSON.stringify({ result: 'Registration succeeded! TODO: actually save user data?' }), { status: 200 });
       } catch (e) {

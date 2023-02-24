@@ -9,6 +9,13 @@
   <script type="module" src="https://authn.one"></script>
 </head>
 <body>
-  <authn-one onlogin="console.log(event)"></authn-one>
+  <authn-one onlogin="loggedIn()"></authn-one>
+
+  <script>
+    function loggedIn() {
+      document.querySelector('authn-one').remove();
+      document.body.prepend('Success!');
+    }
+  </script>
 </body>
 </html>

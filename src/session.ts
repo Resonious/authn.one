@@ -36,7 +36,7 @@ export class Session implements DurableObject {
 
     // POST /consume
     // returns everything set by /init and destroys the session
-    if (request.method === 'GET' && url.pathname === '/info') {
+    if (request.method === 'POST' && url.pathname === '/consume') {
       const [ email, challenge, origin ] = await Promise.all([
         this.state.storage.get<string>('email'),
         this.state.storage.get<string>('challenge'),

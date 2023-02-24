@@ -3,10 +3,10 @@ import { client } from '@passwordless-id/webauthn';
 const AUTHN_ONE = '{{ AUTHN_ONE }}                                   '.trim();
 
 class AuthnOneElement extends HTMLElement {
-  constructor() {
-    super();
-    const shadowRoot = this.attachShadow({ mode: "open" });
-    shadowRoot.innerHTML = `
+  initialState(root: ShadowRoot) {
+    if (root.querySelector('form')) return;
+
+    root.innerHTML = `
       <style>
         :host {
           font-family: sans-serif;
@@ -16,12 +16,23 @@ class AuthnOneElement extends HTMLElement {
         }
       </style>
       <form id="form">
-        <input id="email" type="email">
+        <input placeholder="test@example.com" id="email" type="email">
         <button type="submit" id="sign-in">Sign In</button>
       </form>
     `;
-    shadowRoot.getElementById('form')!
-              .addEventListener('submit', this.signin.bind(this, shadowRoot));
+    root.getElementById('form')!
+        .addEventListener('submit', this.signin.bind(this, root));
+  }
+
+  loadingState(root: ShadowRoot) {
+    root.querySelectorAll('form').forEach(e => e.remove());
+    root.append('Authenticating...');
+  }
+
+  constructor() {
+    super();
+    const shadowRoot = this.attachShadow({ mode: "open" });
+    this.initialState(shadowRoot);
   }
 
   async signin(root: ShadowRoot, event: SubmitEvent) {
@@ -30,29 +41,53 @@ class AuthnOneElement extends HTMLElement {
       alert("Your browser doesn't support the security features required to sign in.");
       return;
     }
-    const email = root.getElementById('email')! as HTMLInputElement;
-    const origin = new URL(window.location.href).host;
 
-    const { existingUser, challenge } = await authnFetch('/challenge', {
-      method: 'POST',
-      body: JSON.stringify({ email: email.value })
-    }).then(r => r.json());
+    try {
+      const email = (root.getElementById('email')! as HTMLInputElement).value;
+      const origin = new URL(window.location.href).host;
 
-    if (existingUser) {
-      alert('Oh I know you...');
-    }
-    else {
-      const registration = await client.register(email.value, challenge, {
-        debug: true,
-        authenticatorType: 'both',
-      });
-      console.log('SUCCESS!!!!!!!');
-      const registerResult = await authnFetch('/register', {
+      this.loadingState(root);
+
+      const { existingUser, challenge } = await authnFetch('/challenge', {
         method: 'POST',
-        body: JSON.stringify({ challenge, registration }),
+        body: JSON.stringify({ email: email })
       }).then(r => r.json());
-      console.log(registerResult)
+
+      if (existingUser) {
+        alert('Oh I know you...');
+      }
+      else {
+        const registration = await client.register(email, challenge, {
+          debug: true,
+          authenticatorType: 'both',
+        });
+        console.log('SUCCESS!!!!!!!');
+        const registerResult = await authnFetch('/register', {
+          method: 'POST',
+          body: JSON.stringify({ challenge, registration }),
+        }).then(r => r.json());
+        console.log(registerResult);
+
+        this.emit('login', { userId: 'haha not yet' })
+      }
+    } finally {
+      this.initialState(root);
     }
+  }
+
+  // Emit an event, supporting on{name} attributes as well
+  emit(name: string, detail: any) {
+    const event = new CustomEvent(name, { detail });
+
+    const attribute = this.getAttribute(`on${name}`);
+    if (attribute) {
+      const callback = new Function('event', attribute);
+      try { callback.call(window, event); } catch (e) { console.error(e); }
+    }
+
+    this.dispatchEvent(new CustomEvent(name, {
+      detail
+    }));
   }
 }
 
@@ -65,6 +100,11 @@ function authnFetch(path, request: RequestInit) {
     },
     mode: 'cors',
     credentials: 'omit',
+  }).then(r => {
+    if (r.status >= 300) {
+      throw new Error(`authn.one error: ${r.status} ${r.statusText} ${r.url}`)
+    }
+    return r;
   });
 }
 

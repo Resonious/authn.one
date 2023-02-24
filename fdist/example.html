@@ -23,6 +23,15 @@
 <body>
   <h1>Welcome to test website</h1>
 
-  <authn-one onlogin="console.log(event)"></authn-one>
+  <authn-one onlogin="loggedIn()"></authn-one>
+
+  <div id="success" style="display: none">Success!</div>
+
+  <script>
+    function loggedIn() {
+      document.querySelector('authn-one').remove();
+      document.getElementById('success').style.display = 'initial';
+    }
+  </script>
 </body>
 </html>
