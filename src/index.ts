@@ -5,7 +5,6 @@ import { getUserFromEmail, getVerifiedUserFromEmail, UserInfo, userIsVerified } 
 
 export { User } from './user';
 export { Session } from './session';
-export { Website } from './website';
 
 /*****************************************
  * BEGIN Cloudflare Sites boilerplate
