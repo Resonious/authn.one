@@ -1,7 +1,7 @@
 import { getAssetFromKV, NotFoundError } from '@cloudflare/kv-asset-handler';
 import { server } from '@passwordless-id/webauthn';
 import { SessionInit } from './session';
-import { getUserFromEmail, UserInfo } from './user';
+import { getUserFromEmail, getVerifiedUserFromEmail, UserInfo, userIsVerified } from './user';
 
 export { User } from './user';
 export { Session } from './session';
@@ -31,7 +31,7 @@ function assetOptions(env, rest) {
 
 export type PostChallengeResponse = {
   challenge: string,
-  existingUser: UserInfo | null,
+  credentialIDs: string[],
   verify: SessionInit['verify'],
 }
 
@@ -52,12 +52,17 @@ export default {
         .then(throwOnFail('user/info', 500))
         .then(r => r && r.json<UserInfo | null>());
 
+      const isVerified = existingUser &&
+                         existingUser.emails.some(x => x.email === email && x.verifiedAt);
+
+      console.log('challenge for', email, existingUser?.emails);
+
       const challenge = crypto.randomUUID();
       const sessionID = env.SESSION.idFromName(challenge);
       const session = env.SESSION.get(sessionID);
       const sessionInit: SessionInit = {
         email, challenge, origin,
-        verify: existingUser?.lastVerifiedAt ? 'unnecessary' : 'inprogress'
+        verify: isVerified ? 'unnecessary' : 'inprogress'
       };
 
       // Start a new session
@@ -69,12 +74,14 @@ export default {
 
       // Send verification email
       if (sessionInit.verify === 'inprogress') {
-        sendVerificationEmail(env.APP_HOST, email, sessionID);
+        sendVerificationEmail(email, sessionID, env);
       }
+
+      const credentialIDs = existingUser?.credentials.map(x => x.id) ?? [];
 
       const response: PostChallengeResponse = {
         challenge,
-        existingUser,
+        credentialIDs,
         verify: sessionInit.verify
       }
       return allowCors(new Response(JSON.stringify(response), { status: 200 }));
@@ -82,7 +89,6 @@ export default {
 
     // POST /register
     // requested by <authn-one> element when registering
-    // TODO: make sure this does not happen until user is already verified
     if (request.method === 'POST' && url.pathname === '/register') {
       const origin = request.headers.get('origin');
       if (!origin) throw new Error('No origin in register request');
@@ -91,48 +97,91 @@ export default {
         registration: RegistrationEncoded
       };
 
+      // copypasta in authenticate
       const sessionID = env.SESSION.idFromName(challenge);
       const session = env.SESSION.get(sessionID);
-      const sessionInfo = session.fetch('https://session/consume', {
+      const sessionInfo = await session.fetch('https://session/consume', {
         method: 'POST'
-      }).then(r => r.json()) as Promise<SessionInit & { error: string }>;
+      }).then(r => r.json()) as SessionInit & { error: string };
 
       // TODO: don't consume the session here - let the implementer's server do that.
-      // ALSO: make sure verification is done before creating any users.
 
-      const checkAgainstSession = (field: keyof SessionInit) => async (arg: string) => {
-        const info = await sessionInfo;
-        if (info.error) return false;
-        if (info[field] !== arg) return false;
-        return true;
+      const user = await getVerifiedUserFromEmail(sessionInfo.email, env);
+      if (!user) {
+        console.error('Attempted registration for non-existent or unverified user ' + sessionInfo.email);
+        return new Response('{"error":"user not verified"}', { status: 403 });
       }
 
       try {
-        sessionInfo.then(info => {
-          console.log(info);
-        })
-
         // verifyRegistration throws an error when the check fails
         await server.verifyRegistration(registration, {
-          challenge: checkAgainstSession('challenge'),
-          origin: checkAgainstSession('origin'),
+          challenge: checkAgainstSession(sessionInfo, 'challenge'),
+          origin: checkAgainstSession(sessionInfo, 'origin'),
         });
 
         // Great, so the registration is valid. Can return the user ID to frontend.
-        // TODO actually fetch user id here. also make sure everything is secure...
+        await user.dobj.fetch('https://user/credential', {
+          method: 'POST',
+          body: JSON.stringify({ credential: registration.credential })
+        }).then(throwOnFail('user/credential'));
+        console.log('REGISTRATION SUCCESS', registration.credential.id);
 
         return new Response(JSON.stringify({ result: 'Registration succeeded! TODO: actually save user data?' }), { status: 200 });
       } catch (e) {
         console.error(e);
-        return new Response(JSON.stringify({ error: 'Registration failed' }), { status: 400 });
+        return new Response('{"error":"registration invalid"}', { status: 400 });
+      }
+    }
+
+    // POST /authenticate
+    // requested by <authn-one> element when authenticating
+    if (request.method === 'POST' && url.pathname === '/authenticate') {
+      const origin = request.headers.get('origin');
+      if (!origin) throw new Error('No origin in register request');
+      const { challenge, authentication } = await request.json() as {
+        challenge: string,
+        authentication: AuthenticationEncoded
+      };
+
+      // copypasta of register
+      const sessionID = env.SESSION.idFromName(challenge);
+      const session = env.SESSION.get(sessionID);
+      const sessionInfo = await session.fetch('https://session/consume', {
+        method: 'POST'
+      }).then(r => r.json()) as SessionInit & { error: string };
+      const user = await getVerifiedUserFromEmail(sessionInfo.email, env);
+      if (!user) {
+        console.error('Attempted authentication for non-existent or unverified user ' + sessionInfo.email);
+        return new Response('{"error":"authentication invalid"}', { status: 401 });
+      }
+      const credential = user.info.credentials.find(x => x.id === authentication.credentialId);
+      if (!credential) {
+        console.error('Attempted authentication using invalid credentials ' + sessionInfo.email);
+        return new Response('{"error":"authentication invalid"}', { status: 401 });
+      }
+
+      try {
+        // verifyAuthentication throws an error when the check fails
+        await server.verifyAuthentication(authentication, credential, {
+          challenge: checkAgainstSession(sessionInfo, 'challenge'),
+          origin: checkAgainstSession(sessionInfo, 'origin'),
+          userVerified: true,
+          counter: 0
+        });
+
+        return new Response(JSON.stringify({ result: 'Authentication succeeded! TODO: prove it to the implementer server!' }), { status: 200 });
+      } catch (e) {
+        console.error(e);
+        return new Response('{"error":"authentication invalid"}', { status: 401 });
       }
     }
 
     // GET /verify
     // Linked to in verification email. Visiting this marks the user (and session) as verified.
     if (request.method === 'GET' && url.pathname === '/verify') {
-      const sessionID = url.searchParams.get('session');
-      if (!sessionID) return new Response("You may have followed a bad link!", { status: 404 });
+      const verifyID = url.searchParams.get('session');
+      const sessionID = await env.USERS.get(`verify:${verifyID}`);
+      if (!verifyID || !sessionID) return new Response("You may have followed a bad link!", { status: 404 });
 
       const session = env.SESSION.get(env.SESSION.idFromString(sessionID));
       const response = await session.fetch('https://session/verify', { method: 'POST' });
@@ -205,4 +254,13 @@ function throwOnFail(name: string, threshold: number = 300) {
 function allowCors(response: Response) {
   response.headers.set('Access-Control-Allow-Origin', '*');
   return response;
+}
+
+// Used for verifying a registration or authentication via @passwordless-id/webauthn
+function checkAgainstSession(info: SessionInit & { error: string }, field: keyof SessionInit) {
+  return async (arg: string) => {
+    if (info.error) return false;
+    if (info[field] !== arg) return false;
+    return true;
+  }
 }

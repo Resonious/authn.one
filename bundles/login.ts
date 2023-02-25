@@ -1,5 +1,6 @@
 import { client } from '@passwordless-id/webauthn';
 import { PostChallengeResponse } from '../src/index';
+import { UserInfo } from '../src/user';
 import '../src/types.d';
 
 const AUTHN_ONE = '{{ AUTHN_ONE }}                                   '.trim();
@@ -64,7 +65,7 @@ class AuthnOneElement extends HTMLElement {
 
     const email = (root.getElementById('email')! as HTMLInputElement).value;
 
-    const { existingUser, challenge, verify } = await authnFetch('/challenge', {
+    const { credentialIDs, challenge, verify } = await authnFetch('/challenge', {
       method: 'POST',
       body: JSON.stringify({ email })
     }).then(r => r.json() as Promise<PostChallengeResponse>);
@@ -72,11 +73,14 @@ class AuthnOneElement extends HTMLElement {
     this.challenge = challenge;
     this.email = email;
 
-    if (existingUser) {
-      alert('Oh I know you...');
+    console.log(credentialIDs);
+
+    if (credentialIDs.length !== 0) {
+      await this.authenticate(credentialIDs)
+        .then(() => { this.doneState(root) })
+        .catch(() => { this.initialState(root) }); // TODO: show error message?
     }
     else if (verify === 'inprogress') {
-      // TODO: right here!! I guess email verification was sent, so we should show a message
       this.emailVerificationState(root);
     } else if (verify === 'unnecessary') {
       this.loadingState(root);
@@ -105,6 +109,28 @@ class AuthnOneElement extends HTMLElement {
       body: JSON.stringify({ challenge, registration }),
     }).then(r => r.json());
     console.log(registerResult);
+
+    this.emit('login', { userId: 'haha not yet' })
+  }
+
+  // For users who've already registered in the past
+  async authenticate(credentials: string[]) {
+    const { challenge, email } = this;
+    if (!challenge || !email) {
+      throw new Error('register() called without challenge or email');
+    }
+
+    // TODO: what happens if there are no credentials? must find out
+    const authentication = await client.authenticate(credentials, challenge, {
+      debug: true,
+      authenticatorType: 'both',
+    });
+
+    const authenticateResult = await authnFetch('/authenticate', {
+      method: 'POST',
+      body: JSON.stringify({ challenge, authentication }),
+    }).then(r => r.json());
+    console.log(authenticateResult);
 
     this.emit('login', { userId: 'haha not yet' })
   }

@@ -19,3 +19,9 @@ interface RegistrationEncoded {
   clientData: string;
   attestationData?: string;
 }
+interface AuthenticationEncoded {
+  credentialId: string
+  authenticatorData: string
+  clientData: string
+  signature: string
+}

@@ -1,3 +1,5 @@
+import { emailToUserKey } from "./user";
+
 export type SessionInit = {
   email: string,
   challenge: string,
@@ -37,11 +39,37 @@ export class Session implements DurableObject {
     }
 
     // POST /verify
-    // marks the session as verified
+    // marks the session as verified, also saves this info in the user object
     if (request.method === 'POST' && url.pathname === '/verify') {
-      const verify = await this.state.storage.get<string>('verify');
-      if (!verify || verify === 'unnecessary') {
+      const [verify, email] = await Promise.all([
+        this.state.storage.get<string>('verify'),
+        this.state.storage.get<string>('email'),
+      ]);
+      if (!email || !verify || verify === 'unnecessary') {
         return new Response('{"error":"bad verify"}', { status: 400 });
+      }
+
+      // Create or update user with newly verified email
+      const key = await emailToUserKey(email);
+      const userID = await this.env.USERS.get(key);
+      let user;
+      if (userID) {
+        console.log('found user for verify', email, key, userID);
+        const userDobjID = this.env.USER.idFromString(userID);
+        user = this.env.USER.get(userDobjID);
+      }
+      else {
+        console.log('making new user for verify', email, key);
+        const newUserDobjID = this.env.USER.newUniqueId();
+        await this.env.USERS.put(key, newUserDobjID.toString());
+        user = this.env.USER.get(newUserDobjID);
+      }
+      const verifyResult = await user.fetch('https://user/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      });
+      if (verifyResult.status >= 300) {
+        return new Response('{"error":"verify failed for unknown reason"}', { status: 500 });
       }
 
       await Promise.all([
