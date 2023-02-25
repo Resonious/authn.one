@@ -158,7 +158,6 @@ function authnFetch(path, request: RequestInit) {
       'content-type': 'application/json',
       ...request.headers
     },
-    mode: 'cors',
     credentials: 'omit',
   }).then(r => {
     if (r.status >= 300) {
