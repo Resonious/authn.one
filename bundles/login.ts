@@ -1,6 +1,5 @@
 import { client } from '@passwordless-id/webauthn';
 import { PostChallengeResponse } from '../src/index';
-import { UserInfo } from '../src/user';
 import '../src/types.d';
 
 const AUTHN_ONE = '{{ AUTHN_ONE }}                                   '.trim();

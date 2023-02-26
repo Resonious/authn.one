@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>authn.one usage example</title>
 
-  <script type="module" src="http://localhost:8787"></script>
+  <script type="module" src="http://localhost:8787/login.js"></script>
 
   <style>
     body{
@@ -19,8 +19,6 @@
       padding: 0;
     }
   </style>
-  <script src="//cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script>
 </head>
 <body>
   <h1>Welcome to test website</h1>
@@ -29,10 +27,22 @@
 
   <div id="success" style="display: none">Success!</div>
 
+  <button onclick="debugWithEruda()">Debug</button>
+
   <script>
     function loggedIn() {
       document.querySelector('authn-one').remove();
       document.getElementById('success').style.display = 'initial';
+    }
+
+    function debugWithEruda() {
+      const script = document.createElement('script');
+      script.defer = true;
+      script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+      script.onload = () => {
+        eruda.init();
+      }
+      document.head.append(script);
     }
   </script>
 </body>

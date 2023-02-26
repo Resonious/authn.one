@@ -228,13 +228,13 @@ async function handleBrowserRequest(request: Request, env: AuthnOneEnv, ctx: Exe
   try {
     const secFetchDest = request.headers.get('sec-fetch-dest');
 
-    if (url.pathname === '/' && secFetchDest === 'script') {
-      assetURL.pathname = '/login.js';
-      let host = `${assetURL.protocol}//${assetURL.host}`;
+    if (secFetchDest === 'script') {
+      if (url.pathname === '/') assetURL.pathname = '/login.js';
+      let host = env.APP_HOST;
 
       const response = await getAssetFromKV(evt(), assetOptions(env, undefined));
       const js = await response.text();
-      const js2 = js.replace('{{ AUTHN_ONE }}', host);
+      const js2 = js.replace(new RegExp(`{{ AUTHN_ONE }}\\s{${host.length - 15}}`), host);
       return new Response(js2, response);
     }
 
