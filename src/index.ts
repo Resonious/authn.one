@@ -1,7 +1,8 @@
 import { getAssetFromKV, NotFoundError } from '@cloudflare/kv-asset-handler';
 import { server } from '@passwordless-id/webauthn';
 import { SessionInit } from './session';
-import { getUserFromEmail, getVerifiedUserFromEmail, UserInfo, userIsVerified } from './user';
+import { getUserFromEmail, getVerifiedUserFromEmail, UserInfo } from './user';
+import { sendVerificationEmail } from './email';
 
 export { User } from './user';
 export { Session } from './session';
@@ -11,7 +12,6 @@ export { Session } from './session';
  *****************************************/
 // @ts-ignore
 import manifestJSON from '__STATIC_CONTENT_MANIFEST'
-import { sendVerificationEmail } from './email';
 const assetManifest = JSON.parse(manifestJSON)
 
 // @ts-ignore
@@ -37,13 +37,15 @@ export type PostChallengeResponse = {
 export default {
   async fetch(request: Request, env: AuthnOneEnv, ctx: ExecutionContext) {
     if (request.method === 'OPTIONS') {
-      return allowCORS(new Response('', { status: 204 }));
+      return allowCORS(request, new Response('', {
+        status: 204
+      }));
     }
 
     let response: Response | null = await handleAPIRequest(request, env, ctx);
     if (!response) response = await handleBrowserRequest(request, env, ctx);
 
-    return allowCORS(response);
+    return allowCORS(request, response);
   },
 };
 
@@ -262,9 +264,34 @@ function throwOnFail(name: string, threshold: number = 300) {
   }
 }
 
-function allowCORS(response: Response) {
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  return response;
+function allowCORS(request: Request, response: Response) {
+  let headers: Headers;
+
+  if (request.method === 'POST' || request.method === 'OPTIONS') {
+    headers = new Headers({
+      'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'OPTIONS, POST',
+      'access-control-allow-headers': 'content-type',
+    });
+    const h = response.headers;
+    const take = (k: string) => {
+      const v = h.get(k);
+      if (v !== null) headers.set(k, v);
+    }
+    take('accept');
+    take('accept-language');
+    take('content-type');
+    take('range');
+  }
+  else {
+    headers = response.headers;
+    headers.append('access-control-allow-origin', '*');
+  }
+
+  return new Response(response.body, {
+    ...response,
+    headers,
+  });
 }
 
 // Used for verifying a registration or authentication via @passwordless-id/webauthn
