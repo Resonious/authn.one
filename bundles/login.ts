@@ -5,7 +5,7 @@ import '../src/types.d';
 const AUTHN_ONE = '{{ AUTHN_ONE }}                                   '.trim();
 
 class AuthnOneElement extends HTMLElement {
-  initialState(root: ShadowRoot) {
+  initialState(root: ShadowRoot, errorMessage?: string) {
     if (root.querySelector('form')) return;
 
     root.getElementById('main')!.innerHTML = `
@@ -16,6 +16,13 @@ class AuthnOneElement extends HTMLElement {
     `;
     root.getElementById('form')!
         .addEventListener('submit', this.signin.bind(this, root));
+
+    if (errorMessage) {
+      const error = document.createElement('p');
+      error.textContent = errorMessage;
+      error.style.color = 'red';
+      root.getElementById('main')!.prepend(error);
+    }
   }
 
   loadingState(root: ShadowRoot) {
@@ -77,7 +84,7 @@ class AuthnOneElement extends HTMLElement {
     if (credentialIDs.length !== 0) {
       await this.authenticate(credentialIDs)
         .then(() => { this.doneState(root) })
-        .catch(() => { this.initialState(root) }); // TODO: show error message?
+        .catch((e) => { this.initialState(root, e.toString()) });
     }
     else if (verify === 'inprogress') {
       this.emailVerificationState(root);
@@ -85,7 +92,7 @@ class AuthnOneElement extends HTMLElement {
       this.loadingState(root);
       await this.register()
         .then(() => { this.doneState(root) })
-        .catch(() => { this.initialState(root) }); // TODO: show error message?
+        .catch((e) => { this.initialState(root, e.toString()) });
     } else {
       throw new Error('Unknown verify state');
     }
