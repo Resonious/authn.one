@@ -289,7 +289,7 @@ function allowCORS(request: Request, response: Response) {
   }
 
   return new Response(response.body, {
-    ...response,
+    status: response.status,
     headers,
   });
 }
