@@ -49,7 +49,7 @@ export default {
   },
 };
 
-async function handleAPIRequest(request: Request, env: AuthnOneEnv, _ctx: ExecutionContext): Promise<Response | null> {
+async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: ExecutionContext): Promise<Response | null> {
   const url = new URL(request.url);
 
   // POST /challenge
@@ -87,7 +87,7 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, _ctx: Execut
 
     // Send verification email
     if (sessionInit.verify === 'inprogress') {
-      sendVerificationEmail(email, sessionID, env);
+      ctx.waitUntil(sendVerificationEmail(email, sessionID, env));
     }
 
     const credentialIDs = existingUser?.credentials.map(x => x.id) ?? [];
