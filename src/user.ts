@@ -28,8 +28,8 @@ export class User implements DurableObject {
     state.storage.get<UserEmail[]>('emails').then(emails => {
       if (!emails) state.storage.put('emails', []);
     });
-    state.storage.get<CredentialKey[]>('credentials').then(creds => {
-      if (!creds) state.storage.put('credentials', []);
+    state.storage.get<string[]>('websites').then(sites => {
+      if (!sites) state.storage.put('websites', []);
     });
     state.storage.get<number>('createdAt').then(createdAt => {
       if (!createdAt) state.storage.put('createdAt', Date.now());
@@ -56,15 +56,14 @@ export class User implements DurableObject {
     // We have to be careful this only happens either *right after email verification*
     // or after confirming that the user is already authenticated with another cred.
     if (request.method === 'POST' && url.pathname === '/credential') {
-      const [{ credential }, credentials] = await Promise.all([
-        await request.json<{ credential: CredentialKey }>(),
-        this.state.storage.get<CredentialKey[]>('credentials').then(x => x ?? []),
-      ]);
+      const { credential, origin } = await request.json<{ credential: CredentialKey, origin: string }>();
+      const credentialKey = `creds:${origin}`;
+      const credentials = (await this.state.storage.get<CredentialKey[]>(credentialKey)) ?? [];
 
       // Check if credential already exists, add if not
       if (!credentials.find(x => x.id === credential.id)) {
         credentials.push(credential);
-        await this.state.storage.put('credentials', credentials);
+        await this.state.storage.put(credentialKey, credentials);
       }
       return new Response('', { status: 204 });
     }
@@ -72,9 +71,11 @@ export class User implements DurableObject {
     // GET /info
     // Just returns info of a verified user. null if not verified yet.
     if (request.method === 'GET' && url.pathname === '/info') {
+      const origin = url.searchParams.get('origin');
+
       const [emails, credentials, createdAt] = await Promise.all([
         this.state.storage.get<UserEmail[]>('emails').then(x => x ?? []),
-        this.state.storage.get<CredentialKey[]>('credentials').then(x => x ?? []),
+        origin ? this.state.storage.get<CredentialKey[]>(`creds:${origin}`).then(x => x ?? []) : [],
         this.state.storage.get<number>('createdAt').then(x => x ?? 0),
       ]);
       const result: UserInfo = {
@@ -122,15 +123,17 @@ export async function emailToUserKey(email: string) {
 }
 
 // Returns a user durable object stub ONLY if a verified user exists under the given email address
-export async function getVerifiedUserFromEmail(email: string, env: AuthnOneEnv): Promise<FetchedUser | null> {
-  const user = await getUserFromEmail(email, env);
+export async function getVerifiedUserFromEmail(arg: { email: string, origin: string }, env: AuthnOneEnv): Promise<FetchedUser | null> {
+  const user = await getUserFromEmail(arg.email, env);
   if (!user) return null;
-  const infoRequest = await user.fetch('https://user/info', { method: 'GET' })
-  if (infoRequest.status >= 300) throw new Error('User broken? ' + email);
+  const url = new URL('https://user/info');
+  url.searchParams.append('origin', arg.origin);
+  const infoRequest = await user.fetch(url.toString(), { method: 'GET' })
+  if (infoRequest.status >= 300) throw new Error('User broken? ' + arg.email + ' - ' + arg.origin);
   const info = await infoRequest.json<UserInfo>();
   if (!info) return null;
 
-  if (userIsVerified(info, email)) return { dobj: user, info };
+  if (userIsVerified(info, arg.email)) return { dobj: user, info };
   else return null;
 }
 

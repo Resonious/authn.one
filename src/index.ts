@@ -60,8 +60,10 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
     const { email } = await request.json() as { email?: string };
     if (!email) throw new Error('No email in challenge request');
 
+    const userInfoURL = new URL('https://user/info');
+    userInfoURL.searchParams.append('origin', origin);
     const existingUser = await getUserFromEmail(email, env)
-      .then(user => user && user.fetch('https://user/info', { method: 'GET', }))
+      .then(user => user && user.fetch(userInfoURL.toString(), { method: 'GET', }))
       .then(throwOnFail('user/info', 500))
       .then(r => r && r.json<UserInfo | null>());
 
@@ -119,7 +121,7 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
 
     // TODO: don't consume the session here - let the implementer's server do that.
 
-    const user = await getVerifiedUserFromEmail(sessionInfo.email, env);
+    const user = await getVerifiedUserFromEmail(sessionInfo, env);
     if (!user) {
       console.error('Attempted registration for non-existent or unverified user ' + sessionInfo.email);
       return new Response('{"error":"user not verified"}', { status: 403 });
@@ -135,7 +137,7 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
       // Great, so the registration is valid. Can return the user ID to frontend.
       await user.dobj.fetch('https://user/credential', {
         method: 'POST',
-        body: JSON.stringify({ credential: registration.credential })
+        body: JSON.stringify({ origin, credential: registration.credential })
       }).then(throwOnFail('user/credential'));
       console.log('REGISTRATION SUCCESS', registration.credential.id);
 
@@ -162,7 +164,7 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
     const sessionInfo = await session.fetch('https://session/consume', {
       method: 'POST'
     }).then(r => r.json()) as SessionInit & { error: string };
-    const user = await getVerifiedUserFromEmail(sessionInfo.email, env);
+    const user = await getVerifiedUserFromEmail(sessionInfo, env);
     if (!user) {
       console.error('Attempted authentication for non-existent or unverified user ' + sessionInfo.email);
       return new Response('{"error":"authentication invalid"}', { status: 401 });
