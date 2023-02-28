@@ -1,10 +1,15 @@
+import { sendVerificationEmail } from "./email";
 import { emailToUserKey } from "./user";
 
 export type SessionInit = {
+  // Email of user attempting to sign in/up
   email: string,
+  // Cryptographic challenge, randomly generated
   challenge: string,
+  // Origin of the site requesting the login
   origin: string,
-  verify: 'inprogress' | 'unnecessary' | 'success',
+  // Email verification status
+  verify: 'notyet' | 'inprogress' | 'unnecessary' | 'success',
 }
 
 export class Session implements DurableObject {
@@ -38,14 +43,34 @@ export class Session implements DurableObject {
       return new Response('', { status: 204 });
     }
 
+    // POST /credential
+    // sets just the credential, for temporary storage until user verifies via email
+    if (request.method === 'POST' && url.pathname === '/credential') {
+      const { credential } = await request.json() as { credential: CredentialKey };
+      const [_put1, _put2, email, origin] = await Promise.all([
+        this.state.storage.put('credential', credential),
+        this.state.storage.put('verify', 'inprogress'),
+        this.state.storage.get<string>('email'),
+        this.state.storage.get<string>('origin'),
+      ]);
+      if (!email || !origin) {
+        return new Response('{"error":"tried to attach credential to bad session"}', { status: 400 });
+      }
+      sendVerificationEmail(email, this.state.id, this.env);
+
+      return new Response('', { status: 204 });
+    }
+
     // POST /verify
     // marks the session as verified, also saves this info in the user object
     if (request.method === 'POST' && url.pathname === '/verify') {
-      const [verify, email] = await Promise.all([
+      const [verify, email, origin, credential] = await Promise.all([
         this.state.storage.get<string>('verify'),
         this.state.storage.get<string>('email'),
+        this.state.storage.get<string>('origin'),
+        this.state.storage.get<CredentialKey>('credential'),
       ]);
-      if (!email || !verify || verify === 'unnecessary') {
+      if (!email || !verify || !origin || verify === 'unnecessary') {
         return new Response('{"error":"bad verify"}', { status: 400 });
       }
 
@@ -66,7 +91,7 @@ export class Session implements DurableObject {
       }
       const verifyResult = await user.fetch('https://user/verify', {
         method: 'POST',
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, origin, credential })
       });
       if (verifyResult.status >= 300) {
         return new Response('{"error":"verify failed for unknown reason"}', { status: 500 });
@@ -78,9 +103,9 @@ export class Session implements DurableObject {
       return new Response('', { status: 204 });
     }
 
-    // POST /consume
-    // returns everything set by /init and destroys the session
-    if (request.method === 'POST' && url.pathname === '/consume') {
+    // GET /info
+    // returns everything set by /init
+    if (request.method === 'GET' && url.pathname === '/info') {
       const [ email, challenge, origin, verify ] = await Promise.all([
         this.state.storage.get<string>('email'),
         this.state.storage.get<string>('challenge'),
@@ -90,9 +115,6 @@ export class Session implements DurableObject {
       if (!email || !challenge || !origin) {
         return new Response('{"error":"session not yet initialized"}', { status: 404 });
       }
-
-      // Self destruct
-      this.state.storage.setAlarm(Date.now());
 
       return new Response(JSON.stringify({
         email, challenge, origin, verify

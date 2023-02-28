@@ -42,29 +42,17 @@ export class User implements DurableObject {
     // POST /verify
     // Comes from the Session object when a new user is verified
     if (request.method === 'POST' && url.pathname === '/verify') {
-      const { email } = await request.json<{ email: string }>();
+      const { email, origin, credential } = await request.json<{
+        email: string,
+        origin: string,
+        credential: CredentialKey | null,
+      }>();
 
       await Promise.all([
         this.addEmail(email, true),
+        credential ? this.addCredential(credential, origin) : null,
       ]);
 
-      return new Response('', { status: 204 });
-    }
-
-    // POST /credential
-    // New credential registered
-    // We have to be careful this only happens either *right after email verification*
-    // or after confirming that the user is already authenticated with another cred.
-    if (request.method === 'POST' && url.pathname === '/credential') {
-      const { credential, origin } = await request.json<{ credential: CredentialKey, origin: string }>();
-      const credentialKey = `creds:${origin}`;
-      const credentials = (await this.state.storage.get<CredentialKey[]>(credentialKey)) ?? [];
-
-      // Check if credential already exists, add if not
-      if (!credentials.find(x => x.id === credential.id)) {
-        credentials.push(credential);
-        await this.state.storage.put(credentialKey, credentials);
-      }
       return new Response('', { status: 204 });
     }
 
@@ -111,6 +99,17 @@ export class User implements DurableObject {
     else return;
 
     return await this.state.storage.put('emails', emails);
+  }
+
+  async addCredential(credential: CredentialKey, origin: string) {
+    const key = `creds:${origin}`;
+    const credentials = (await this.state.storage.get<CredentialKey[]>(key)) ?? [];
+
+    // Check if credential already exists, add if not
+    if (!credentials.find(x => x.id === credential.id)) {
+      credentials.push(credential);
+      await this.state.storage.put(key, credentials);
+    }
   }
 
   // TODO self destruct if not verified after awhile?

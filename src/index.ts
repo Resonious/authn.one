@@ -31,7 +31,6 @@ function assetOptions(env, rest) {
 export type PostChallengeResponse = {
   challenge: string,
   credentialIDs: string[],
-  verify: SessionInit['verify'],
 }
 
 export default {
@@ -67,8 +66,7 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
       .then(throwOnFail('user/info', 500))
       .then(r => r && r.json<UserInfo | null>());
 
-    const isVerified = existingUser &&
-                       existingUser.emails.some(x => x.email === email && x.verifiedAt);
+    const credentialIDs = existingUser?.credentials.map(x => x.id) ?? [];
 
     console.log('challenge for', email, existingUser?.emails);
 
@@ -77,7 +75,7 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
     const session = env.SESSION.get(sessionID);
     const sessionInit: SessionInit = {
       email, challenge, origin,
-      verify: isVerified ? 'unnecessary' : 'inprogress'
+      verify: 'notyet',
     };
 
     // Start a new session
@@ -87,17 +85,9 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
       body: JSON.stringify(sessionInit)
     }).then(throwOnFail('session/init'));
 
-    // Send verification email
-    if (sessionInit.verify === 'inprogress') {
-      ctx.waitUntil(sendVerificationEmail(email, sessionID, env));
-    }
-
-    const credentialIDs = existingUser?.credentials.map(x => x.id) ?? [];
-
     const response: PostChallengeResponse = {
       challenge,
       credentialIDs,
-      verify: sessionInit.verify
     }
     return new Response(JSON.stringify(response), { status: 200 });
   }
@@ -115,16 +105,13 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
     // copypasta in authenticate
     const sessionID = env.SESSION.idFromName(challenge);
     const session = env.SESSION.get(sessionID);
-    const sessionInfo = await session.fetch('https://session/consume', {
-      method: 'POST'
+    const sessionInfo = await session.fetch('https://session/info', {
+      method: 'GET'
     }).then(r => r.json()) as SessionInit & { error: string };
 
-    // TODO: don't consume the session here - let the implementer's server do that.
-
-    const user = await getVerifiedUserFromEmail(sessionInfo, env);
-    if (!user) {
-      console.error('Attempted registration for non-existent or unverified user ' + sessionInfo.email);
-      return new Response('{"error":"user not verified"}', { status: 403 });
+    if (origin !== sessionInfo.origin) {
+      console.error('Attempted registration from mismatched origin', origin, sessionInfo.origin);
+      return new Response('{"error":"registration invalid"}', { status: 400 });
     }
 
     try {
@@ -133,19 +120,19 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
         challenge: checkAgainstSession(sessionInfo, 'challenge'),
         origin: checkAgainstSession(sessionInfo, 'origin'),
       });
-
-      // Great, so the registration is valid. Can return the user ID to frontend.
-      await user.dobj.fetch('https://user/credential', {
-        method: 'POST',
-        body: JSON.stringify({ origin, credential: registration.credential })
-      }).then(throwOnFail('user/credential'));
-      console.log('REGISTRATION SUCCESS', registration.credential.id);
-
-      return new Response(JSON.stringify({ result: 'Registration succeeded! TODO: actually save user data?' }), { status: 200 });
     } catch (e) {
       console.error(e);
       return new Response('{"error":"registration invalid"}', { status: 400 });
     }
+
+    // OK, now that the credential is registered, we temporarily save it to the session
+    // while we wait for the user to verify their email address.
+    await session.fetch('https://session/credential', {
+      method: 'POST',
+      body: JSON.stringify(registration),
+    }).then(throwOnFail('session/credential'));
+
+    return new Response('', { status: 204 });
   }
 
   // POST /authenticate
@@ -161,8 +148,8 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
     // copypasta of register
     const sessionID = env.SESSION.idFromName(challenge);
     const session = env.SESSION.get(sessionID);
-    const sessionInfo = await session.fetch('https://session/consume', {
-      method: 'POST'
+    const sessionInfo = await session.fetch('https://session/info', {
+      method: 'GET'
     }).then(r => r.json()) as SessionInit & { error: string };
     const user = await getVerifiedUserFromEmail(sessionInfo, env);
     if (!user) {
