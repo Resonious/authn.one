@@ -106,7 +106,6 @@ class AuthnOneElement extends HTMLElement {
     }
 
     const registration = await client.register(email, challenge, {
-      debug: true,
       authenticatorType: 'both',
     });
 
@@ -114,7 +113,6 @@ class AuthnOneElement extends HTMLElement {
       method: 'POST',
       body: JSON.stringify({ challenge, registration }),
     }).then(r => r.json());
-    console.log(registerResult);
 
     this.emit('login', { userId: 'haha not yet' })
   }
@@ -128,7 +126,6 @@ class AuthnOneElement extends HTMLElement {
 
     // TODO: what happens if there are no credentials? must find out
     const authentication = await client.authenticate(credentials, challenge, {
-      debug: true,
       authenticatorType: 'both',
     });
 
