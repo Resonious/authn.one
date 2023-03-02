@@ -5,22 +5,24 @@ export async function sendVerificationEmail(email: string, origin: string, sessi
   const verifyURL = new URL('/verify', env.APP_HOST);
   verifyURL.searchParams.set('session', verifyID);
 
-  let fromName = origin.split('.').slice(0, -1).join('-');
-  if (!fromName) fromName = origin;
+  const originURL = new URL(origin);
+  let fromName = originURL.hostname.split('.').slice(0, -1).join('-');
+  if (!fromName) fromName = originURL.hostname;
 
   await sendEmail(env, {
-    subject: `Verify your login to ${origin}`,
+    subject: `Passwordless login verification`,
     body: {
       html: `
-Click <a href="${verifyURL}">here</a> to verify your login to ${origin}
+This is authn.one, a passwordless login service.<br>
+If you are trying to log into ${origin}, click <a href="${verifyURL}">here</a> to verify your login.
 <br><br>
 <a href="${verifyURL}">${verifyURL}</a>
 <br><br>
-Only click the above link if you are currently trying to log in to ${origin}.<br>
-If this doesn't ring a bell, you can safely ignore this email.
+If you don't recognize this login attempt, you can safely ignore this email.
 `.trim(),
       text: `
-Visit the following URL to verify your login to ${origin}:
+This is authn.one, a passwordless login service.
+If you are trying to log into ${origin}, follow the link below:
 \n
 ${verifyURL}
 \n
@@ -31,7 +33,7 @@ If this doesn't ring a bell, you can safely ignore this email.
     to: email,
     from: {
       email: `${fromName}@${new URL(env.APP_HOST).hostname}`,
-      name: `Authentication @ ${origin}`,
+      name: `authn.one`,
     },
   });
 }
@@ -64,6 +66,9 @@ async function sendEmail(env: AuthnOneEnv, args: SendArgs) {
       personalizations: [
         {
           to: [{ email: args.to }],
+          dkim_domain: new URL(env.APP_HOST).hostname,
+          dkim_selector: 'mailchannels',
+          dkim_private_key: env.DKIM_PRIVATE_KEY,
         },
       ],
       from: args.from,

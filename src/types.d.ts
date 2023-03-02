@@ -4,6 +4,7 @@ interface AuthnOneEnv {
   SESSION: DurableObjectNamespace,
   APP_HOST: string,
   ENV: 'development' | 'production',
+  DKIM_PRIVATE_KEY: string,
 }
 
 // Pasted in from passwordless-id because they don't export their own types
