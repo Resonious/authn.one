@@ -69,7 +69,7 @@ export class Session implements DurableObject {
       if (!email || !origin) {
         return new Response('{"error":"tried to attach credential to bad session"}', { status: 400 });
       }
-      sendVerificationEmail(email, this.state.id, this.env);
+      sendVerificationEmail(email, origin, this.state.id, this.env);
 
       return new Response('', { status: 204 });
     }

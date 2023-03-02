@@ -3,6 +3,7 @@ interface AuthnOneEnv {
   USER: DurableObjectNamespace,
   SESSION: DurableObjectNamespace,
   APP_HOST: string,
+  ENV: 'development' | 'production',
 }
 
 // Pasted in from passwordless-id because they don't export their own types

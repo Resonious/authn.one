@@ -25,7 +25,7 @@ class AuthnOneElement extends HTMLElement {
             type="submit"
             class="b signin"
             id="sign-in"
-          >Sign In</button>
+          >Log In</button>
         </div>
       </form>
     `;
