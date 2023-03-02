@@ -35,21 +35,64 @@ export type PostChallengeResponse = {
 
 export default {
   async fetch(request: Request, env: AuthnOneEnv, ctx: ExecutionContext) {
+    const url = new URL(request.url);
+
     if (request.method === 'OPTIONS') {
-      return allowCORS(request, new Response('', {
+      return allowCORS(url, request, new Response('', {
         status: 204
       }));
     }
 
-    let response: Response | null = await handleAPIRequest(request, env, ctx);
-    if (!response) response = await handleBrowserRequest(request, env, ctx);
+    let response: Response | null = await handleAPIRequest(url, request, env, ctx);
+    if (!response) response = await handleBrowserRequest(url, request, env, ctx);
 
-    return allowCORS(request, response);
+    return allowCORS(url, request, response);
   },
 };
 
-async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: ExecutionContext): Promise<Response | null> {
-  const url = new URL(request.url);
+async function handleAPIRequest(url: URL, request: Request, env: AuthnOneEnv, ctx: ExecutionContext): Promise<Response | null> {
+  // GET,POST /check/:challenge
+  // requested by <authn-one> element when signing in
+  if (url.pathname.startsWith('/check')) {
+    const parts = url.pathname.split('/');
+    const challenge = decodeURIComponent(parts[2]);
+
+    // copypasta in authenticate
+    const sessionID = env.SESSION.idFromName(challenge);
+    const session = env.SESSION.get(sessionID);
+    const sessionInfo = await session.fetch('https://session/info', {
+      method: 'GET'
+    }).then(r => r.json()) as SessionInit & { error: string };
+
+    // This usually means session doesn't exist
+    if (sessionInfo.error) {
+      console.log('check', sessionInfo.error);
+      ctx.waitUntil(session.fetch('https://session/destroy', { method: 'POST' }));
+      return new Response('{"authenticated":false}', { status: 200 });
+    }
+
+    // This means the session does exist but hasn't been completed yet
+    if (!sessionInfo.authenticatedUserID) {
+      console.log('not authed yet', sessionID);
+      return new Response('{"authenticated":false}', { status: 200 });
+    }
+
+    // If we got here, then the session IS authenticated.
+    // POST requests will return the full session data and destroy the session.
+    // GET requests will simply report authenticated: true
+    if (request.method === 'POST') {
+      ctx.waitUntil(session.fetch('https://session/destroy', { method: 'POST' }));
+      return new Response(JSON.stringify({
+        authenticated: true,
+        origin: sessionInfo.origin,
+        email: sessionInfo.email,
+        user: sessionInfo.authenticatedUserID,
+      }), { status: 200 });
+    }
+    else {
+      return new Response('{"authenticated":true}', { status: 200 });
+    }
+  }
 
   // POST /challenge
   // requested by <authn-one> element when signing in
@@ -151,6 +194,10 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
     const sessionInfo = await session.fetch('https://session/info', {
       method: 'GET'
     }).then(r => r.json()) as SessionInit & { error: string };
+    if (sessionInfo.error) {
+      console.error('Authenticate attempt with errored session: ' + sessionInfo.error);
+      return new Response('{"error":"authentication invalid"}', { status: 401 });
+    }
     const user = await getVerifiedUserFromEmail(sessionInfo, env);
     if (!user) {
       console.error('Attempted authentication for non-existent or unverified user ' + sessionInfo.email);
@@ -171,7 +218,12 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
         counter: 0
       });
 
-      return new Response(JSON.stringify({ result: 'Authentication succeeded! TODO: prove it to the implementer server!' }), { status: 200 });
+      await session.fetch('https://session/authenticated', {
+        method: 'POST',
+        body: JSON.stringify({ userID: user.info.id }),
+      });
+
+      return new Response('', { status: 204 });
     } catch (e) {
       console.error(e);
       return new Response('{"error":"authentication invalid"}', { status: 401 });
@@ -194,8 +246,7 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
   return null;
 }
 
-async function handleBrowserRequest(request: Request, env: AuthnOneEnv, ctx: ExecutionContext) {
-  const url = new URL(request.url);
+async function handleBrowserRequest(url: URL, request: Request, env: AuthnOneEnv, ctx: ExecutionContext) {
   const assetURL = new URL(request.url);
 
   const evt = () => ({
@@ -242,10 +293,13 @@ function throwOnFail(name: string, threshold: number = 300) {
   }
 }
 
-function allowCORS(request: Request, response: Response) {
+function allowCORS(url: URL, request: Request, response: Response) {
   let headers: Headers;
 
   if (request.method === 'POST' || request.method === 'OPTIONS') {
+    // POST /check/:challenge is the only non-CORS request
+    if (url.pathname.startsWith('/check/')) return response;
+
     headers = new Headers({
       'access-control-allow-origin': '*',
       'access-control-allow-methods': 'OPTIONS, POST',

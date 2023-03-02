@@ -64,6 +64,8 @@ class AuthnOneElement extends HTMLElement {
   challenge?: string;
   email?: string;
   state: 'initial' | 'session-in-progress' | 'awaiting-verification' = 'initial';
+  checkInterval?: number;
+  check?: () => Promise<void>;
 
   constructor() {
     super();
@@ -246,7 +248,24 @@ class AuthnOneElement extends HTMLElement {
       throw new Error(await registerResult.text());
     }
 
-    // TODO: maybe websocket wait for verification? or what?
+    // At this point we wait for verification
+    this.stopChecking();
+    this.check = async () => {
+      if (!this.challenge) return this.stopChecking();
+
+      const { authenticated } = await authnFetch(`/check/${this.challenge}`, {
+        method: 'GET'
+      }).then(r => r.json() as Promise<{ authenticated: boolean }>);
+
+      if (authenticated) {
+        this.stopChecking();
+        this.complete();
+      }
+    };
+
+    // @ts-ignore because TS thinks this is NodeJS.Timer right now
+    this.checkInterval = setInterval(this.check, 10000);
+    window.addEventListener('focus', this.check);
   }
 
   // For users who've already registered in the past
@@ -256,18 +275,24 @@ class AuthnOneElement extends HTMLElement {
       throw new Error('register() called without challenge or email');
     }
 
-    // TODO: what happens if there are no credentials? must find out
     const authentication = await client.authenticate(credentials, challenge, {
       authenticatorType: 'both',
     });
 
-    const authenticateResult = await authnFetch('/authenticate', {
+    const authenticateResponse = await authnFetch('/authenticate', {
       method: 'POST',
       body: JSON.stringify({ challenge, authentication }),
-    }).then(r => r.json());
-    console.log(authenticateResult);
+    });
+    if (authenticateResponse.status >= 300) {
+      const result = await authenticateResponse.json();
+      if (result.error) {
+        throw new Error(result.error);
+      } else {
+        throw new Error('Auth service returned ' + authenticateResponse.status);
+      }
+    }
 
-    this.emit('login', { userId: 'haha not yet' })
+    this.complete();
   }
 
   // Emit an event, supporting on{name} attributes as well
@@ -284,15 +309,40 @@ class AuthnOneElement extends HTMLElement {
       detail
     }));
   }
+
+  // This means we successfully authenticated
+  complete() {
+    if (!this.challenge) throw new Error('complete() called without challenge');
+
+    const form = document.createElement('form') as HTMLFormElement;
+    form.action = `/signin/${encodeURIComponent(this.challenge)}`;
+    form.method = 'POST';
+    form.style.display = 'none';
+    document.body.append(form);
+    form.submit();
+  }
+
+  stopChecking() {
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      delete this.checkInterval;
+    }
+    if (this.check) {
+      window.removeEventListener('focus', this.check);
+      delete this.check;
+    }
+  }
 }
 
 function authnFetch(path, request: RequestInit) {
+  const headers = new Headers(request.headers);
+  if (request.method === 'POST') {
+    headers.set('content-type', 'application/json');
+  }
+
   return fetch(`${AUTHN_ONE}${path}`, {
     ...request,
-    headers: {
-      'content-type': 'application/json',
-      ...request.headers
-    },
+    headers,
     credentials: 'omit',
   }).then(r => {
     if (r.status >= 300) {

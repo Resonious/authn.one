@@ -10,6 +10,8 @@ export type SessionInit = {
   origin: string,
   // Email verification status
   verify: 'notyet' | 'inprogress' | 'unnecessary' | 'success',
+  // User ID, set only once authenticated
+  authenticatedUserID?: string
 }
 
 export class Session implements DurableObject {
@@ -39,6 +41,17 @@ export class Session implements DurableObject {
         this.state.storage.put('challenge', challenge),
         this.state.storage.put('origin', origin),
         this.state.storage.put('verify', verify),
+      ]);
+      return new Response('', { status: 204 });
+    }
+
+    // POST /authenticated
+    // sets the user ID for this session
+    if (request.method === 'POST' && url.pathname === '/authenticated') {
+      const { userID } = await request.json() as { userID: string };
+      await Promise.all([
+        this.state.storage.put('authenticatedUserID', userID),
+        this.state.storage.put('verify', 'unnecessary'),
       ]);
       return new Response('', { status: 204 });
     }
@@ -99,6 +112,7 @@ export class Session implements DurableObject {
 
       await Promise.all([
         this.state.storage.put('verify', 'success'),
+        this.state.storage.put('authenticatedUserID', user.id.toString())
       ]);
       return new Response('', { status: 204 });
     }
@@ -106,19 +120,28 @@ export class Session implements DurableObject {
     // GET /info
     // returns everything set by /init
     if (request.method === 'GET' && url.pathname === '/info') {
-      const [ email, challenge, origin, verify ] = await Promise.all([
+      const [ email, challenge, origin, verify, authenticatedUserID ] = await Promise.all([
         this.state.storage.get<string>('email'),
         this.state.storage.get<string>('challenge'),
         this.state.storage.get<string>('origin'),
         this.state.storage.get<string>('verify'),
+        this.state.storage.get<string>('authenticatedUserID'),
       ]);
       if (!email || !challenge || !origin) {
         return new Response('{"error":"session not yet initialized"}', { status: 404 });
       }
 
-      return new Response(JSON.stringify({
-        email, challenge, origin, verify
-      }), { status: 200 });
+      const info: SessionInit = {
+        email, challenge, origin, verify: verify as SessionInit['verify'], authenticatedUserID
+      }
+
+      return new Response(JSON.stringify(info), { status: 200 });
+    }
+
+    // POST /destroy
+    // deletes the session
+    if (request.method === 'POST' && url.pathname === '/destroy') {
+      this.state.storage.setAlarm(Date.now());
     }
 
     return new Response('{"error":"unknown path"}', { status: 404 });
