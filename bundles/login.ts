@@ -88,6 +88,7 @@ class AuthnOneElement extends HTMLElement {
 
           padding: 30px;
           border: 1px solid #dadce0;
+          border-radius: 4px;
         }
 
         form {
