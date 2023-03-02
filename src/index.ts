@@ -191,17 +191,6 @@ async function handleAPIRequest(request: Request, env: AuthnOneEnv, ctx: Executi
     return new Response("You're verified! You may close this window now.");
   }
 
-  // GET/POST /test
-  if (url.pathname === '/test') {
-    // Dump headers for testing..
-    let headersString = '';
-    for (const [key, value] of request.headers) {
-      headersString += `${key}: ${value}\n`
-    }
-
-    return new Response(headersString);
-  }
-
   return null;
 }
 
