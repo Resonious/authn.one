@@ -5,20 +5,35 @@ import '../src/types.d';
 const AUTHN_ONE = '{{ AUTHN_ONE }}                                   '.trim();
 
 class AuthnOneElement extends HTMLElement {
-  initialState(root: ShadowRoot, errorMessage?: string) {
+  initialState(root: DocumentFragment, errorMessage?: string) {
     if (root.querySelector('form')) return;
 
     root.getElementById('main')!.innerHTML = `
       <form id="form">
-        <input placeholder="test@example.com" id="email" type="email">
-        <button type="button" id="register">Register</button>
-        <button type="submit" id="sign-in">Sign In</button>
+        <label>
+          <span>Email Address</span>
+          <input placeholder="test@example.com" id="email" type="email">
+        </label>
+
+        <div class="buttons">
+          <button
+            type="button"
+            class="b register"
+            id="register"
+          >New Passkey</button>
+          <button
+            type="submit"
+            class="b signin"
+            id="sign-in"
+          >Sign In</button>
+        </div>
       </form>
     `;
     root.getElementById('form')!
         .addEventListener('submit', this.signin.bind(this, root));
     root.getElementById('register')!
         .addEventListener('click', this.signup.bind(this, root));
+    (root.getElementById('email') as HTMLInputElement).value = this.email ?? '';
 
     if (errorMessage) {
       const error = document.createElement('p');
@@ -28,11 +43,11 @@ class AuthnOneElement extends HTMLElement {
     }
   }
 
-  loadingState(root: ShadowRoot) {
+  loadingState(root: DocumentFragment) {
     root.getElementById('main')!.replaceChildren('Authenticating...');
   }
 
-  emailVerificationState(root: ShadowRoot) {
+  emailVerificationState(root: DocumentFragment) {
     root.getElementById('main')!.innerHTML = `
       <p>We sent a verification email to <span id="email"></span>.
       Please open the message and click the link.</p>
@@ -40,7 +55,7 @@ class AuthnOneElement extends HTMLElement {
     root.getElementById('email')!.textContent = this.email ?? 'unknown@unknown';
   }
 
-  doneState(root: ShadowRoot) {
+  doneState(root: DocumentFragment) {
     root.getElementById('main')!.innerHTML = `<p>Authenticated ✅</p>`;
   }
 
@@ -60,6 +75,80 @@ class AuthnOneElement extends HTMLElement {
           padding: 25px;
           color: var(--authn-one-text-color, #000);
         }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        #main {
+          width: 400px;
+
+          padding: 30px;
+          border: 1px solid #dadce0;
+        }
+
+        form {
+          display: flex;
+          flex-direction: column;
+
+          gap: 10px;
+        }
+
+        label {
+          font-size: 14px;
+        }
+
+        input {
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #dadce0;
+          border-radius: 4px;
+        }
+
+        .buttons {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .b {
+          padding: 10px;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        .b:hover {
+          background: #dadce0;
+        }
+        .b:active {
+          background: #dadce0;
+        }
+
+        .register {
+          background: none;
+          border: none;
+        }
+
+        .signin {
+          border: 1px solid #dadce0;
+          background: #1a73e8;
+          color: white;
+        }
+        .signin:hover {
+          background: #2456df;
+        }
+
+        .shake {
+          animation: shake 0.44s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+          0% { transform: translateX(0); }
+          10% { transform: translateX(-5px); }
+          30% { transform: translateX(5px); }
+          50% { transform: translateX(-5px); }
+          70% { transform: translateX(5px); }
+          90% { transform: translateX(-5px); }
+          100% { transform: translateX(0); }
+        }
       </style><div id="main"></div>`
 
     this.initialState(shadowRoot);
@@ -67,13 +156,14 @@ class AuthnOneElement extends HTMLElement {
 
   // Always registers new credentials. Can be used to add new credentials to an
   // existing user, or to register a new user. What's the difference!?
-  async signup(root: ShadowRoot, event: Event) {
+  async signup(root: ShadowRoot, _event: Event) {
     if (!client.isAvailable()) {
       alert("Your browser doesn't support the security features required to sign in.");
       return;
     }
 
-    await this.begin(root);
+    const result = await this.begin(root);
+    if (result === null) return;
 
     // Immediately authenticate
     await this.register()
@@ -91,6 +181,7 @@ class AuthnOneElement extends HTMLElement {
     }
 
     const credentialIDs = await this.begin(root);
+    if (credentialIDs === null) return;
     console.log(credentialIDs);
 
     if (credentialIDs.length !== 0) {
@@ -104,8 +195,14 @@ class AuthnOneElement extends HTMLElement {
     }
   }
 
+  // 1st step: get challenge and existing credentials for an email address
   async begin(root: ShadowRoot) {
-    const email = (root.getElementById('email')! as HTMLInputElement).value;
+    const emailInput = root.getElementById('email')! as HTMLInputElement;
+    const email = emailInput.value;
+
+    if (!email) {
+      return this.shakeField(emailInput);
+    }
 
     this.loadingState(root);
     const { credentialIDs, challenge } = await authnFetch('/challenge', {
@@ -117,6 +214,17 @@ class AuthnOneElement extends HTMLElement {
     this.email = email;
 
     return credentialIDs;
+  }
+
+  // Shakes an element to indicate an error
+  shakeField(input) {
+    input.focus();
+    input.classList.add('shake');
+    input.addEventListener('animationend', () => {
+      input.classList.remove('shake');
+    }, { once: true });
+
+    return null;
   }
 
   // 2nd step register once verified
