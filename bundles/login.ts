@@ -36,6 +36,8 @@ class AuthnOneElement extends HTMLElement {
     (root.getElementById('email') as HTMLInputElement).value = this.email ?? '';
 
     if (errorMessage) {
+      if (errorMessage.match(/The operation either timed out or was not allowed/)) return;
+
       const error = document.createElement('p');
       error.textContent = errorMessage;
       error.style.color = 'red';
@@ -74,6 +76,7 @@ class AuthnOneElement extends HTMLElement {
           display: block;
           padding: 25px;
           color: var(--authn-one-text-color, #000);
+          font-size: 14px;
         }
 
         * {
@@ -92,10 +95,6 @@ class AuthnOneElement extends HTMLElement {
           flex-direction: column;
 
           gap: 10px;
-        }
-
-        label {
-          font-size: 14px;
         }
 
         input {
