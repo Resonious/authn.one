@@ -5,35 +5,68 @@ import '../src/types.d';
 const AUTHN_ONE = '{{ AUTHN_ONE }}                                   '.trim();
 
 class AuthnOneElement extends HTMLElement {
+  static get observedAttributes() {
+    return ['email'];
+  }
+
+  attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null) {
+    const root = this.shadowRoot;
+    if (!root) return;
+
+    if (name === 'email') {
+      const emailInput = root.getElementById('email') as HTMLInputElement | null;
+      if (!emailInput) return;
+      emailInput.value = newValue ?? '';
+      emailInput.disabled = !!newValue;
+    }
+  }
+
   initialState(root: DocumentFragment, errorMessage?: string) {
     if (root.querySelector('form')) return;
+    const quickLogin = this.hasAttribute('quick');
 
-    root.getElementById('main')!.innerHTML = `
-      <form id="form">
-        <label>
-          <span>Email Address</span>
-          <input placeholder="test@example.com" id="email" type="email">
-        </label>
-
-        <div class="buttons">
+    if (quickLogin) {
+      root.getElementById('main')!.innerHTML = `
+        <div class="buttons center">
           <button
             type="button"
-            class="b register"
-            id="register"
-          >New Passkey</button>
-          <button
-            type="submit"
             class="b signin"
             id="sign-in"
-          >Log In</button>
+          >Quick Log In</button>
         </div>
-      </form>
-    `;
-    root.getElementById('form')!
-        .addEventListener('submit', this.signin.bind(this, root));
-    root.getElementById('register')!
-        .addEventListener('click', this.signup.bind(this, root));
-    (root.getElementById('email') as HTMLInputElement).value = this.email ?? '';
+      `;
+      root.getElementById('sign-in')!
+          .addEventListener('click', this.quickSignin.bind(this, root));
+    } else {
+      root.getElementById('main')!.innerHTML = `
+        <form id="form">
+          <label>
+            <span>Email Address</span>
+            <input placeholder="test@example.com" id="email" type="email">
+          </label>
+
+          <div class="buttons">
+            <button
+              type="button"
+              class="b register"
+              id="register"
+            >New Passkey</button>
+            <button
+              type="submit"
+              class="b signin"
+              id="sign-in"
+            >Log In</button>
+          </div>
+        </form>
+      `;
+      root.getElementById('form')!
+          .addEventListener('submit', this.signin.bind(this, root));
+      root.getElementById('register')!
+          .addEventListener('click', this.signup.bind(this, root));
+
+      const emailAttr = this.getAttribute('email');
+      this.attributeChangedCallback('email', null, emailAttr);
+    }
 
     if (errorMessage) {
       if (errorMessage.match(/The operation either timed out or was not allowed/)) return;
@@ -91,6 +124,7 @@ class AuthnOneElement extends HTMLElement {
           padding: 30px;
           border: 1px solid #dadce0;
           border-radius: 4px;
+          background: white;
         }
 
         form {
@@ -136,6 +170,10 @@ class AuthnOneElement extends HTMLElement {
         }
         .signin:hover {
           background: #2456df;
+        }
+
+        .center {
+          justify-content: center;
         }
 
         .shake {
@@ -197,10 +235,14 @@ class AuthnOneElement extends HTMLElement {
     }
   }
 
+  async quickSignin() {
+    alert('not implemented yet');
+  }
+
   // 1st step: get challenge and existing credentials for an email address
   async begin(root: ShadowRoot) {
     const emailInput = root.getElementById('email')! as HTMLInputElement;
-    const email = emailInput.value;
+    const email = this.getAttribute('email') ?? emailInput.value;
 
     if (!email) {
       return this.shakeField(emailInput);

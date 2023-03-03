@@ -268,7 +268,7 @@ async function handleBrowserRequest(url: URL, request: Request, env: AuthnOneEnv
     }
 
     else if (url.pathname === '/') {
-      assetURL.pathname = '/example.html';
+      assetURL.pathname = '/index.html';
       return await getAssetFromKV(evt(), assetOptions(env, undefined));
     }
 

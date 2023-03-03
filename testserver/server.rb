@@ -18,11 +18,52 @@ get '/' do
       <title>authn.one test server</title>
 
       <script type="module" src="#{AUTHN_ONE}"></script>
+
+      <style>
+        body{
+          color: #444;
+          background-color: #EEE;
+          margin: 40px auto;
+          max-width: 650px;
+          line-height: 1.6em;
+          font-size: 18px;
+          padding: 0;
+        }
+      </style>
     </head>
     <body>
       <h1>Here we will test authn.one!</h1>
+      There are a few flows, and as of writing only the main one is finished.
+
+      <h2>Regular login</h2>
+      Can log in or register.
 
       <authn-one></authn-one>
+
+      <h2>Fixup</h2>
+      Email is set in stone. Can register a passkey or manage existing ones (TODO management screens).
+
+      <authn-one email="test@baillie.dev"></authn-one>
+
+      <h2>Quick login</h2>
+      Log into existing account using passkey only.
+
+      <authn-one quick></authn-one>
+
+      <h2>Debug</h2>
+      <button onclick="debugWithEruda()">Debug</button>
+
+      <script>
+        function debugWithEruda() {
+          const script = document.createElement('script');
+          script.defer = true;
+          script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+          script.onload = () => {
+            eruda.init();
+          }
+          document.head.append(script);
+        }
+      </script>
     </body>
     </html>
   HTML
