@@ -7,7 +7,11 @@
   <title>authn.one</title>
 
   <style>
-    body{
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
       color: #EEE;
       background-color: #222;
       margin: 40px auto;
@@ -16,6 +20,19 @@
       font-size: 18px;
       padding: 0;
     }
+
+    pre {
+      background: #333;
+      border-radius: 5px;
+      padding: 10px;
+      line-height: 37px;
+      color: #71c851;
+
+      margin-bottom: 0;
+    }
+    pre .str {
+      color: #ff00e3;
+    }
   </style>
 
   <script type="module" src="https://authn.one"></script>
@@ -23,8 +40,50 @@
 <body>
   <h1>authn.one</h1>
 
-  The fastest way to implement passwordless authentication.
+  <main>
+    One stop shop for passwordless authentication.
+  </main>
 
-  <authn-one></authn-one>
+  <pre>&lt;script type="module" src="<span class="str">https://authn.one</span>">&lt;/script>
+&lt;<span class="str">authn-one</span>>&lt;/<span class="str">authn-one</span>></pre>
+
+<svg
+   version="1.1"
+   id="svg5844"
+   xml:space="preserve"
+   width="255.46289"
+   height="150.52736"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+     id="defs5848" /><sodipodi:namedview
+     id="namedview5846"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" /><inkscape:clipboard
+     min="269.11914,561.25976"
+     max="524.58202,711.78711"
+     geom-min="269.11914,561.25976"
+     geom-max="524.58202,711.78711" /><g
+     id="g5850"
+     transform="matrix(3.7795276,0,0,3.7795276,-269.11914,-561.25977)"><path
+       id="rect1260"
+       style="fill:#333333;fill-opacity:1;stroke-width:0.264999;stroke-linejoin:round"
+       d="m -50.391164,159.61952 h -8.530074 v 47.79385 l 47.794212,3.6e-4 v -8.53007 z"
+       transform="rotate(-45)" /><path
+       id="rect1260-3"
+       style="fill:#222222;fill-opacity:1;stroke-width:0.264999;stroke-linejoin:round"
+       d="m -52.54853,157.46216 v 43.5785 l 43.5788707,3.7e-4 z"
+       transform="rotate(-45)" /><path
+       id="rect234-6"
+       style="fill:#333333;fill-opacity:1;stroke-width:0.273403;stroke-linejoin:round"
+       d="m 71.204439,148.49998 v 6.03167 h 67.591221 v -6.03167 z" /></g></svg>
+
+  <authn-one theme="dark"></authn-one>
 </body>
 </html>

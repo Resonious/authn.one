@@ -6,7 +6,7 @@ const AUTHN_ONE = '{{ AUTHN_ONE }}                                   '.trim();
 
 class AuthnOneElement extends HTMLElement {
   static get observedAttributes() {
-    return ['email'];
+    return ['email', 'theme'];
   }
 
   attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null) {
@@ -18,6 +18,12 @@ class AuthnOneElement extends HTMLElement {
       if (!emailInput) return;
       emailInput.value = newValue ?? '';
       emailInput.disabled = !!newValue;
+    }
+
+    else if (name === 'theme') {
+      if (newValue === 'dark') {
+        root.getElementById('main')!.classList.add('dark');
+      }
     }
   }
 
@@ -107,10 +113,13 @@ class AuthnOneElement extends HTMLElement {
     shadowRoot.innerHTML = `
       <style>
         :host {
+          --text-color: #000;
+          --bg-color: #fff;
+          --border-color: #dadce0;
+
           font-family: sans-serif;
           display: block;
           padding: 25px;
-          color: var(--authn-one-text-color, #000);
           font-size: 14px;
         }
 
@@ -122,9 +131,16 @@ class AuthnOneElement extends HTMLElement {
           width: 400px;
 
           padding: 30px;
-          border: 1px solid #dadce0;
+          border: 1px solid var(--border-color);
           border-radius: 4px;
-          background: white;
+          background: var(--bg-color);
+          color: var(--text-color);
+        }
+
+        #main.dark {
+          --text-color: #fff;
+          --bg-color: #333;
+          --border-color: #999;
         }
 
         form {
@@ -137,7 +153,7 @@ class AuthnOneElement extends HTMLElement {
         input {
           width: 100%;
           padding: 10px;
-          border: 1px solid #dadce0;
+          border: 1px solid var(--border-color);
           border-radius: 4px;
         }
 
@@ -150,21 +166,22 @@ class AuthnOneElement extends HTMLElement {
           padding: 10px;
           border-radius: 4px;
           cursor: pointer;
+          border: none;
         }
         .b:hover {
-          background: #dadce0;
+          background: var(--border-color);
         }
         .b:active {
-          background: #dadce0;
+          background: var(--border-color);
         }
 
         .register {
           background: none;
           border: none;
+          color: var(--text-color);
         }
 
         .signin {
-          border: 1px solid #dadce0;
           background: #1a73e8;
           color: white;
         }
@@ -192,6 +209,13 @@ class AuthnOneElement extends HTMLElement {
       </style><div id="main"></div>`
 
     this.initialState(shadowRoot);
+  }
+
+  connectedCallback() {
+    AuthnOneElement.observedAttributes.forEach((attr) => {
+      const value = this.getAttribute(attr);
+      if (value) this.attributeChangedCallback(attr, null, value);
+    });
   }
 
   // Always registers new credentials. Can be used to add new credentials to an
