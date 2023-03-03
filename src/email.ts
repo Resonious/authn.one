@@ -10,18 +10,16 @@ export async function sendVerificationEmail(email: string, origin: string, sessi
   if (!fromName) fromName = originURL.hostname;
 
   await sendEmail(env, {
-    subject: `Passwordless login verification`,
+    subject: `Passwordless login: ${origin}`,
     body: {
       html: `
-This is authn.one, a passwordless login service.<br>
-If you are trying to log into ${origin}, click <a href="${verifyURL}">here</a> to verify your login.
+If you are trying to log into ${origin}, <a href="${verifyURL}">click here</a> to verify your login.
 <br><br>
 <a href="${verifyURL}">${verifyURL}</a>
 <br><br>
 If you don't recognize this login attempt, you can safely ignore this email.
 `.trim(),
       text: `
-This is authn.one, a passwordless login service.
 If you are trying to log into ${origin}, follow the link below:
 \n
 ${verifyURL}
