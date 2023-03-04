@@ -72,6 +72,10 @@ end
 # Automatically POSTed to by authn.one
 post '/signin/:key' do
   response = Net::HTTP.post(URI("#{AUTHN_ONE}/check/#{params[:key]}"), '')
+  if response.code != '200'
+    puts "Bad signin! #{response.code} #{response.body}"
+    return redirect to('/')
+  end
   auth = JSON.parse(response.body)
 
   session_id = rand(0..99999999999).to_s

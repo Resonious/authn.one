@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>authn.one: demo</title>
+
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <h1><a href="https://authn.one">authn.one</a> demo</h1>
+
+  <p>Consider yourself logged in - but not really. This demo doesn't manage any user sessions.</p>
+  <p>Here's how it works:</p>
+
+  <pre><span class="com"># The authn.one library will POST to your server on signin.</span>
+post <span class="str">'/signin/:token'</span> do
+  <span class="com"># This signin token is only good once. Future POSTs to /check will fail.</span>
+  response = Net::HTTP.post(URI(<span class="str">"https://authn.one/check/#{params[:token]}"</span>), '')
+  <span class="highlight">auth</span> = JSON.parse(response.body)
+  raise 'not authenticated' unless auth['authenticated']
+
+  <span class="com"># It's a good idea to check the origin to make sure nobody is tricking you.</span>
+  raise 'invalid auth' if <span class="highlight">auth</span>['origin'] != 'https://example.com'
+
+  <span class="com"># Now you can safely log in your user. How you maintain your session is up to you.</span>
+  session_id = rand(0..99999999999).to_s
+  SESSIONS[session_id] = <span class="highlight">auth</span>
+  headers 'set-cookie' => "session=#{session_id}; path=/; same-site=strict; max-age=3600"
+  redirect to('/app')
+end</pre>
+
+  <p>Since you logged in to the demo, here is your <code class="highlight">auth</code> object:</p>
+
+  <pre id="auth-json"></pre>
+
+  <p>The <code>user</code> field is a unique ID for the user. It is unique to your origin,
+    meaning the same email address will belong to a different user ID for a different consumer of authn.one.</p>
+</body>
+</html>

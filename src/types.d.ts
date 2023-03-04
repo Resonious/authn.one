@@ -7,6 +7,15 @@ interface AuthnOneEnv {
   DKIM_PRIVATE_KEY: string,
 }
 
+type AuthCheckResult = {
+  authenticated: false,
+} | {
+  authenticated: true,
+  origin: string,
+  email: string,
+  user: string,
+}
+
 // Pasted in from passwordless-id because they don't export their own types
 interface CredentialKey {
   id: string;

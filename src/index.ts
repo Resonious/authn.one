@@ -43,12 +43,48 @@ export default {
       }));
     }
 
-    let response: Response | null = await handleAPIRequest(url, request, env, ctx);
+    let response: Response | null = await handleDemoRequest(url, request, env, ctx);
+    if (!response) response = await handleAPIRequest(url, request, env, ctx);
     if (!response) response = await handleBrowserRequest(url, request, env, ctx);
 
     return allowCORS(url, request, response);
   },
 };
+
+// Kind of like API requests but not actually for implementers. Just to facilitate
+// the live demo.
+async function handleDemoRequest(url: URL, request: Request, env: AuthnOneEnv, ctx: ExecutionContext): Promise<Response | null> {
+  if (request.method === 'POST' && url.pathname.startsWith('/signin')) {
+    const parts = url.pathname.split('/');
+    const token = parts[2];
+    if (typeof token !== 'string') {
+      console.log('demo signin failed, token is not a string');
+      return new Response('', { status: 302, headers: { location: '/' } });
+    }
+
+    const result = await fetch(`https://authn.one/check/${encodeURIComponent(token)}`, {
+      method: 'POST'
+    }).then(r => r.json()) as AuthCheckResult;
+
+    if (!result.authenticated) {
+      console.log('authentication failed', result);
+      return new Response('', { status: 302, headers: { location: '/' } });
+    }
+
+    const evt = {
+      request: new Request('https://asset/demo/signin.html'),
+      waitUntil: ctx.waitUntil.bind(ctx)
+    };
+    const document = await getAssetFromKV(evt, assetOptions(env, undefined));
+    const rewriter = new HTMLRewriter()
+      .on('pre', { element: e => {
+        if (e.getAttribute('id') === 'auth-json') e.setInnerContent(JSON.stringify(result, null, 2));
+      } })
+    return rewriter.transform(document);
+  }
+
+  return null;
+}
 
 async function handleAPIRequest(url: URL, request: Request, env: AuthnOneEnv, ctx: ExecutionContext): Promise<Response | null> {
   // GET,POST /check/:challenge
@@ -82,12 +118,13 @@ async function handleAPIRequest(url: URL, request: Request, env: AuthnOneEnv, ct
     // GET requests will simply report authenticated: true
     if (request.method === 'POST') {
       ctx.waitUntil(session.fetch('https://session/destroy', { method: 'POST' }));
-      return new Response(JSON.stringify({
+      const result: AuthCheckResult = {
         authenticated: true,
         origin: sessionInfo.origin,
         email: sessionInfo.email,
         user: sessionInfo.authenticatedUserID,
-      }), { status: 200 });
+      }
+      return new Response(JSON.stringify(result), { status: 200 });
     }
     else {
       return new Response('{"authenticated":true}', { status: 200 });
@@ -299,6 +336,7 @@ function allowCORS(url: URL, request: Request, response: Response) {
   if (request.method === 'POST' || request.method === 'OPTIONS') {
     // POST /check/:challenge is the only non-CORS request
     if (url.pathname.startsWith('/check/')) return response;
+    if (url.pathname.startsWith('/signin/')) return response;
 
     headers = new Headers({
       'access-control-allow-origin': '*',
