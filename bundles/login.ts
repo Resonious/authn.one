@@ -128,13 +128,20 @@ class AuthnOneElement extends HTMLElement {
         }
 
         #main {
-          width: 400px;
+          width: 100%;
+          max-width: 400px;
 
           padding: 30px;
           border: 1px solid var(--border-color);
           border-radius: 4px;
           background: var(--bg-color);
           color: var(--text-color);
+        }
+
+        @media (max-width: 300px) {
+          #main {
+            padding: 15px;
+          }
         }
 
         #main.dark {
@@ -160,6 +167,8 @@ class AuthnOneElement extends HTMLElement {
         .buttons {
           display: flex;
           justify-content: space-between;
+
+          flex-wrap: wrap;
         }
 
         .b {

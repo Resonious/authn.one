@@ -6,10 +6,13 @@ body {
   color: #EEE;
   background-color: #222;
   margin: 40px auto;
-  max-width: 650px;
   line-height: 1.6em;
   font-size: 18px;
-  padding: 0;
+  padding: 8px;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 h1 a,h1 a:visited {
@@ -17,12 +20,20 @@ h1 a,h1 a:visited {
   text-decoration: none;
 }
 
-pre {
+.scroll-wide {
+  overflow-x: auto;
+  max-width: 100%;
+
   background: #333;
   border-radius: 5px;
   padding: 10px;
+  margin: 10px;
+}
+
+pre {
   line-height: 37px;
   color: #71c851;
+  margin: 0;
 }
 pre .str {
   color: #ff00e3;

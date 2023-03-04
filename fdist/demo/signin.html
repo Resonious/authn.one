@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>authn.one: demo</title>
 
+  <link rel="icon" type="image/svg" href="/favicon.svg" />
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -14,6 +15,7 @@
   <p>Consider yourself logged in - but not really. This demo doesn't manage any user sessions.</p>
   <p>Here's how it works:</p>
 
+  <div class="scroll-wide">
   <pre><span class="com"># The authn.one library will POST to your server on signin.</span>
 post <span class="str">'/signin/:token'</span> do
   <span class="com"># This signin token is only good once. Future POSTs to /check will fail.</span>
@@ -30,10 +32,13 @@ post <span class="str">'/signin/:token'</span> do
   headers 'set-cookie' => "session=#{session_id}; path=/; same-site=strict; max-age=3600"
   redirect to('/app')
 end</pre>
+  </div>
 
   <p>Since you logged in to the demo, here is your <code class="highlight">auth</code> object:</p>
 
+  <div class="scroll-wide">
   <pre id="auth-json"></pre>
+  </div>
 
   <p>The <code>user</code> field is a unique ID for the user. It is unique to your origin,
     meaning the same email address will belong to a different user ID for a different consumer of authn.one.</p>
