@@ -56,15 +56,20 @@ export default {
 async function handleDemoRequest(url: URL, request: Request, env: AuthnOneEnv, ctx: ExecutionContext): Promise<Response | null> {
   if (request.method === 'POST' && url.pathname.startsWith('/signin')) {
     const parts = url.pathname.split('/');
-    const token = parts[2];
+    const token = decodeURIComponent(parts[2]);
     if (typeof token !== 'string') {
       console.log('demo signin failed, token is not a string');
       return new Response('', { status: 302, headers: { location: '/' } });
     }
 
-    const result = await fetch(`https://authn.one/check/${encodeURIComponent(token)}`, {
-      method: 'POST'
-    }).then(r => r.json()) as AuthCheckResult;
+    // Here we cheat. Because this *is* authn.one, we don't need to make an http request.
+    const checkURL = new URL(`https://authn.one/check/${encodeURIComponent(token)}`);
+    const checkRequest = new Request(checkURL.toString(), { method: 'POST', });
+    const result = await handleAPIRequest(checkURL, checkRequest, env, ctx)
+    .then(r => {
+      if (!r) throw new Error('This definitely should work');
+      return r.json();
+    }) as AuthCheckResult;
 
     if (!result.authenticated) {
       console.log('authentication failed', result);
