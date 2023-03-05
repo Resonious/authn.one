@@ -164,6 +164,10 @@ class AuthnOneElement extends HTMLElement {
           border-radius: 4px;
         }
 
+        input[disabled] {
+          border: none;
+        }
+
         .buttons {
           display: flex;
           justify-content: space-between;
