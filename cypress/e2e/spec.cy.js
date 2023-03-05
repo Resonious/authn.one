@@ -52,8 +52,15 @@ describe('template spec', () => {
       cy.get('body').should('contain', `"authenticated": true`)
       cy.get('body').should('contain', `"email": "${name}@example.com"`)
 
-      // TODO: from here we can try signing in again to confirm that email verification
-      // is no longer necessary.
+      // Great! From now we just need to test that loggin in works without email verification
+      cy.clearAllCookies()
+      cy.visit('/')
+
+      cy.get('#standard').shadow().find('#email').type(`${name}@example.com`)
+      cy.get('#standard').shadow().contains('Log In').click()
+      cy.get('body').should('contain', 'You are authenticated')
+      cy.get('body').should('contain', `"authenticated": true`)
+      cy.get('body').should('contain', `"email": "${name}@example.com"`)
     })
   })
 })
