@@ -3,12 +3,13 @@ import { promises as fs } from 'fs';
 
 fs.readdir('bundles').then(async (files) => {
   const entryPoints = files
-    .filter((file) => file.endsWith('.ts'))
+    .filter((file) => file.endsWith('.ts') || file.endsWith('.mjs'))
     .map((file) => `bundles/${file}`);
   const esbuildArgs = {
     entryPoints,
     bundle: true,
     outdir: 'fdist',
+    format: 'esm',
     minify: true,
     sourcemap: true,
   };

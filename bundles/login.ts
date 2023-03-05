@@ -427,4 +427,9 @@ function authnFetch(path, request: RequestInit) {
   });
 }
 
+// Polyfill for getPublicKey (not available on Firefox 110)
+if (!AuthenticatorAttestationResponse.prototype['getPublicKey']) {
+  import(`${AUTHN_ONE}/polyfill.js`);
+}
+
 customElements.define('authn-one', AuthnOneElement);
