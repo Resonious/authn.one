@@ -38,17 +38,17 @@ get '/' do
       <h2>Regular login</h2>
       Can log in or register.
 
-      <authn-one></authn-one>
+      <authn-one id="standard"></authn-one>
 
       <h2>Fixup</h2>
       Email is set in stone. Can register a passkey or manage existing ones (TODO management screens).
 
-      <authn-one email="test@baillie.dev"></authn-one>
+      <authn-one id="email-fixed" email="test@baillie.dev"></authn-one>
 
       <h2>Quick login</h2>
       Log into existing account using passkey only.
 
-      <authn-one quick></authn-one>
+      <authn-one id="quick" quick></authn-one>
 
       <h2>Debug</h2>
       <button onclick="debugWithEruda()">Debug</button>
@@ -109,4 +109,44 @@ get '/secret' do
     </body>
     </html>
   HTML
+end
+
+# Email simulation for automated tests
+# Same interface as mailchannels.net.
+EMAILS = {} # {recipient => email[]}
+
+post '/tx/v1/send' do
+  body = JSON.parse(request.body.read, symbolize_names: true)
+  case body
+  in {
+    personalizations: [{
+      to: [{ email: to }],
+    }],
+    from: from,
+  }
+    name = to.split('@').first
+    EMAILS[name] ||= []
+    EMAILS[name] << body
+  else
+    puts 'Bad email request'
+    puts JSON.pretty_generate(body)
+  end
+
+  status 204
+  ''
+end
+
+# Get simulated emails by recipient (?to=x), ignores domain
+get '/emails/:to' do
+  headers 'Content-Type' => 'application/json',
+          'Access-Control-Allow-Origin' => '*'
+
+  emails = EMAILS[params[:to]]
+
+  if emails.nil? || emails.empty?
+    status 404
+    return 'null'
+  end
+
+  JSON.pretty_generate(emails)
 end

@@ -9,6 +9,7 @@
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^3.0.0",
+		"cypress": "^12.7.0",
 		"esbuild": "^0.17.10",
 		"vitest": "^0.24.5",
 		"wrangler": "^2.1.14"

@@ -16,13 +16,15 @@ class AuthnOneElement extends HTMLElement {
     if (name === 'email') {
       const emailInput = root.getElementById('email') as HTMLInputElement | null;
       if (!emailInput) return;
-      emailInput.value = newValue ?? '';
+      if (newValue) emailInput.value = newValue;
       emailInput.disabled = !!newValue;
     }
 
     else if (name === 'theme') {
       if (newValue === 'dark') {
         root.getElementById('main')!.classList.add('dark');
+      } else {
+        root.getElementById('main')!.classList.remove('dark');
       }
     }
   }
@@ -231,6 +233,10 @@ class AuthnOneElement extends HTMLElement {
     });
   }
 
+  disconnectedCallback() {
+    this.stopChecking();
+  }
+
   // Always registers new credentials. Can be used to add new credentials to an
   // existing user, or to register a new user. What's the difference!?
   async signup(root: ShadowRoot, _event: Event) {
@@ -392,6 +398,7 @@ class AuthnOneElement extends HTMLElement {
   // This means we successfully authenticated
   complete() {
     if (!this.challenge) throw new Error('complete() called without challenge');
+    if (this.shadowRoot) this.doneState(this.shadowRoot);
 
     const form = document.createElement('form') as HTMLFormElement;
     form.action = `/signin/${encodeURIComponent(this.challenge)}`;

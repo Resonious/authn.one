@@ -114,7 +114,7 @@ async function handleAPIRequest(url: URL, request: Request, env: AuthnOneEnv, ct
 
     // This means the session does exist but hasn't been completed yet
     if (!sessionInfo.authenticatedUserID) {
-      console.log('not authed yet', sessionID);
+      console.log('not verified yet', sessionID);
       return new Response('{"authenticated":false}', { status: 200 });
     }
 

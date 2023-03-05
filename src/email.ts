@@ -50,12 +50,14 @@ type SendArgs = {
 };
 
 async function sendEmail(env: AuthnOneEnv, args: SendArgs) {
+  let emailEndpoint = 'https://api.mailchannels.net/tx/v1/send';
+
   if (env.ENV === 'development') {
+    emailEndpoint = 'http://localhost:4567/tx/v1/send';
     console.log(`EMAIL ${args.from.email} -> ${args.to} "${args.subject}"\n${args.body.text}`);
-    return;
   }
 
-  const email = await fetch('https://api.mailchannels.net/tx/v1/send', {
+  const email = await fetch(emailEndpoint, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
