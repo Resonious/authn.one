@@ -49,12 +49,11 @@ describe('template spec', () => {
       })
 
       cy.get('body').should('contain', 'You are authenticated')
-      cy.get('body').should('contain', `"authenticated": false`)
+      cy.get('body').should('contain', `"authenticated": true`)
       cy.get('body').should('contain', `"email": "${name}@example.com"`)
 
       // TODO: from here we can try signing in again to confirm that email verification
       // is no longer necessary.
-      // but: WTF is going on with the final form submit? it takes ages
     })
   })
 })
