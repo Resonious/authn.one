@@ -68,9 +68,9 @@ class AuthnOneElement extends HTMLElement {
         </form>
       `;
       root.getElementById('form')!
-          .addEventListener('submit', this.signin.bind(this, root));
+          .addEventListener('submit', e => this.signin(root, e));
       root.getElementById('register')!
-          .addEventListener('click', this.signup.bind(this, root));
+          .addEventListener('submit', e => this.signup(root, e));
 
       const emailAttr = this.getAttribute('email');
       this.attributeChangedCallback('email', null, emailAttr);
@@ -239,7 +239,7 @@ class AuthnOneElement extends HTMLElement {
 
   // Always registers new credentials. Can be used to add new credentials to an
   // existing user, or to register a new user. What's the difference!?
-  async signup(root: ShadowRoot, _event: Event) {
+  async signup(root: DocumentFragment, _event: Event) {
     if (!client.isAvailable()) {
       alert("Your browser doesn't support the security features required to sign in.");
       return;
@@ -256,7 +256,7 @@ class AuthnOneElement extends HTMLElement {
 
   // This is effectively a "sign in or up". If the user has no credentials, we
   // just register them fresh.
-  async signin(root: ShadowRoot, event: SubmitEvent) {
+  async signin(root: DocumentFragment, event: SubmitEvent) {
     event.preventDefault();
     if (!client.isAvailable()) {
       alert("Your browser doesn't support the security features required to sign in.");
@@ -283,7 +283,7 @@ class AuthnOneElement extends HTMLElement {
   }
 
   // 1st step: get challenge and existing credentials for an email address
-  async begin(root: ShadowRoot) {
+  async begin(root: DocumentFragment) {
     const emailInput = root.getElementById('email')! as HTMLInputElement;
     const email = this.getAttribute('email') ?? emailInput.value;
 
@@ -304,7 +304,7 @@ class AuthnOneElement extends HTMLElement {
   }
 
   // Shakes an element to indicate an error
-  shakeField(input) {
+  shakeField(input: HTMLInputElement) {
     input.focus();
     input.classList.add('shake');
     input.addEventListener('animationend', () => {
@@ -420,7 +420,7 @@ class AuthnOneElement extends HTMLElement {
   }
 }
 
-function authnFetch(path, request: RequestInit) {
+function authnFetch(path: string, request: RequestInit) {
   const headers = new Headers(request.headers);
   if (request.method === 'POST') {
     headers.set('content-type', 'application/json');

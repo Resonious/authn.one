@@ -11,6 +11,6 @@
 		"sourceMap": true,
 		"types": ["@cloudflare/workers-types"]
 	},
-	"include": ["src"],
+	"include": ["."],
 	"exclude": ["node_modules", "dist", "test"]
 }
