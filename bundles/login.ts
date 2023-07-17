@@ -70,7 +70,7 @@ class AuthnOneElement extends HTMLElement {
       root.getElementById('form')!
           .addEventListener('submit', e => this.signin(root, e));
       root.getElementById('register')!
-          .addEventListener('submit', e => this.signup(root, e));
+          .addEventListener('click', e => this.signup(root, e));
 
       const emailAttr = this.getAttribute('email');
       if (emailAttr) {
