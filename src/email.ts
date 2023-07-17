@@ -86,7 +86,15 @@ async function sendEmail(env: AuthnOneEnv, args: SendArgs) {
     }),
   });
 
+  const responseBody = await email.text();
+
+  console.log({
+    emailEndpoint,
+    sendEmailResponse: responseBody,
+    status: email.status,
+  })
+
   if (email.status >= 300) {
-    throw new Error(`Email failed: ${email.status} ${await email.text()}`);
+    throw new Error(`Email failed: ${email.status} ${responseBody}`);
   }
 }
