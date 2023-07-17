@@ -55,15 +55,15 @@ class AuthnOneElement extends HTMLElement {
 
           <div class="buttons">
             <button
-              type="button"
-              class="b register"
-              id="register"
-            >New Passkey</button>
-            <button
               type="submit"
               class="b signin"
               id="sign-in"
             >Log In</button>
+            <button
+              type="button"
+              class="b register"
+              id="register"
+            >Having Trouble?</button>
           </div>
         </form>
       `;
@@ -73,7 +73,20 @@ class AuthnOneElement extends HTMLElement {
           .addEventListener('submit', e => this.signup(root, e));
 
       const emailAttr = this.getAttribute('email');
-      this.attributeChangedCallback('email', null, emailAttr);
+      if (emailAttr) {
+        this.attributeChangedCallback('email', null, emailAttr);
+      } else {
+        // Save last email for convenience
+        const emailElement = root.getElementById('email')! as HTMLInputElement;
+        emailElement.addEventListener('change', (event) => {
+          const el = event.target as HTMLInputElement;
+          window.localStorage.setItem('_authn.one-email', el.value);
+        });
+        const lastEmail = window.localStorage.getItem('_authn.one-email');
+        if (lastEmail) {
+          emailElement.value = lastEmail;
+        }
+      }
     }
 
     if (errorMessage) {

@@ -25,7 +25,7 @@ If you are trying to log into ${origin}, follow the link below:
 ${verifyURL}
 \n
 Only click the above link if you are currently trying to log in to ${origin}.
-If this doesn't ring a bell, you can safely ignore this email.
+If you are not trying to log in to ${origin}, you can safely ignore this email.
 `.trim(),
     },
     to: email,
