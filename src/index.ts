@@ -4,8 +4,8 @@ import { SessionInit } from './session';
 import { getUserFromEmail, getVerifiedUserFromEmail, UserInfo } from './user';
 import { sendVerificationEmail } from './email';
 
-export { UserDO as User } from './user';
-export { SessionDO as Session } from './session';
+export { User } from './user';
+export { Session } from './session';
 
 /*****************************************
  * BEGIN Cloudflare Sites boilerplate

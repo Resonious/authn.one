@@ -16,7 +16,7 @@ export interface FetchedUser {
   info: UserInfo,
 }
 
-export class UserDO implements DurableObject {
+export class User implements DurableObject {
   state: DurableObjectState
   env: AuthnOneEnv
 
