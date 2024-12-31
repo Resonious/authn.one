@@ -50,51 +50,106 @@ type SendArgs = {
 };
 
 async function sendEmail(env: AuthnOneEnv, args: SendArgs) {
-  let emailEndpoint = 'https://api.mailchannels.net/tx/v1/send';
-
   if (env.ENV === 'development') {
-    emailEndpoint = 'http://localhost:4567/tx/v1/send';
     console.log(`EMAIL ${args.from.email} -> ${args.to} "${args.subject}"\n${args.body.text}`);
+		return;
   }
 
-  const email = await fetch(emailEndpoint, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      personalizations: [
-        {
-          to: [{ email: args.to }],
-          dkim_domain: new URL(env.APP_HOST).hostname,
-          dkim_selector: 'mailchannels',
-          dkim_private_key: env.DKIM_PRIVATE_KEY,
-        },
-      ],
-      from: args.from,
-      subject: args.subject,
-      content: [
-        {
-          type: 'text/plain',
-          value: args.body.text,
-        },
-        {
-          type: 'text/html',
-          value: args.body.html
-        },
-      ],
-    }),
-  });
+	const headers = {
+		'content-type': 'application/json',
+		'accept': 'application/json',
+		'authorization': `Bearer ${env.FASTMAIL_API_KEY}`,
+	};
 
-  const responseBody = await email.text();
+	const session = await fetch("https://api.fastmail.com/.well-known/jmap", {
+		method: 'GET',
+		headers,
+	}).then(x => x.json<any>());
+	const apiUrl = session['apiUrl']
+	const accountId = session['primaryAccounts']['urn:ietf:params:jmap:submission']
+	console.log(apiUrl, accountId);
 
-  console.log({
-    emailEndpoint,
-    sendEmailResponse: responseBody,
-    status: email.status,
-  })
+	const mailboxQuery = {
+		using: ["urn:ietf:params:jmap:submission", "urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"],
+		methodCalls: [
+			['Mailbox/query', {
+				accountId,
+				filter: { role: 'drafts' },
+			}, 'drafts'],
+			['Identity/get', {
+				accountId,
+			}, 'identity'],
+		]
+	};
 
-  if (email.status >= 300) {
-    throw new Error(`Email failed: ${email.status} ${responseBody}`);
-  }
+	const queryResponse = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(mailboxQuery), headers });
+	const { methodResponses } = await queryResponse.json<any>();
+	const [drafts] = methodResponses.find((r: any) => r[2] === "drafts")[1]["ids"];
+	const identities = methodResponses.find((r: any) => r[2] === "identity")[1]["list"];
+	const identity = identities.find((i: any) => i["email"] === args.from.email);
+	if (!identity) {
+		throw new Error("Cannot send from configured address");
+	}
+	const sent = identity["saveSentToMailboxId"]
+
+	// Create the email
+	const createEmail = {
+		using: ['urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail', 'urn:ietf:params:jmap:submission'],
+		methodCalls: [
+			['Email/set', {
+				accountId,
+				create: {
+					email1: {
+						mailboxIds: {
+							[sent]: true,
+						},
+						from: [args.from],
+						to: [{ email: args.to }],
+						subject: args.subject,
+						textBody: [{
+							partId: '1'
+						}],
+						htmlBody: [{
+							partId: '2'
+						}],
+						bodyValues: {
+							'1': {
+								value: args.body.text
+							},
+							'2': {
+								value: args.body.html
+							}
+						}
+					}
+				}
+			}, '0'],
+		]
+	};
+
+	const emailResponses = (await fetch(apiUrl, { method: 'POST', body: JSON.stringify(createEmail), headers }).then(x => x.json<any>()))['methodResponses']
+	console.log(emailResponses);
+	console.log(emailResponses[0][1].notCreated);
+	// TODO: the email is being marked as "not created". maybe because of how I'm putting in html
+	const id = emailResponses[0][1].created.email1.id;
+
+	// Send the email
+	const submission = {
+		using: ['urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail', 'urn:ietf:params:jmap:submission'],
+		methodCalls: [
+			['EmailSubmission/set', {
+				accountId,
+				create: {
+					notif: {
+						identityId: identity["id"],
+						emailId: id,
+					}
+				}
+			}, '0'],
+		]
+	};
+	const sendResponses = (await fetch(apiUrl, { method: 'POST', body: JSON.stringify(submission), headers }).then(x => x.json<any>()))['methodResponses'];
+	const created = sendResponses[0][1]['created']['notif'];
+	if (!created) {
+		throw new Error("Failed to send");
+	}
 }
