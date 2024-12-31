@@ -95,7 +95,7 @@ class AuthnOneElement extends HTMLElement {
       const error = document.createElement('p');
       error.textContent = errorMessage;
       error.style.color = 'red';
-      root.getElementById('main')!.prepend(error);
+      root.getElementById('main')!.prepend(error as any);
     }
   }
 
@@ -291,7 +291,7 @@ class AuthnOneElement extends HTMLElement {
     }
   }
 
-  async quickSignin() {
+  async quickSignin(_: any) {
     alert('not implemented yet');
   }
 
@@ -382,7 +382,7 @@ class AuthnOneElement extends HTMLElement {
       body: JSON.stringify({ challenge, authentication }),
     });
     if (authenticateResponse.status >= 300) {
-      const result = await authenticateResponse.json();
+      const result = await authenticateResponse.json() as any;
       if (result.error) {
         throw new Error(result.error);
       } else {
@@ -417,7 +417,7 @@ class AuthnOneElement extends HTMLElement {
     form.action = `/signin/${encodeURIComponent(this.challenge)}`;
     form.method = 'POST';
     form.style.display = 'none';
-    document.body.append(form);
+    document.body.append(form as any);
     form.submit();
   }
 
