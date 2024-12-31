@@ -12,6 +12,7 @@ export { Session } from './session';
  *****************************************/
 // @ts-ignore
 import manifestJSON from '__STATIC_CONTENT_MANIFEST'
+import { RegistrationJSON } from '@passwordless-id/webauthn/dist/esm/types';
 const assetManifest = JSON.parse(manifestJSON)
 
 // @ts-ignore
@@ -184,7 +185,7 @@ async function handleAPIRequest(url: URL, request: Request, env: AuthnOneEnv, ct
     if (!origin) throw new Error('No origin in register request');
     const { challenge, registration } = await request.json() as {
       challenge: string,
-      registration: RegistrationEncoded
+      registration: RegistrationJSON
     };
 
     // copypasta in authenticate
