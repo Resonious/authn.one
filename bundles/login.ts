@@ -375,9 +375,10 @@ class AuthnOneElement extends HTMLElement {
       throw new Error('register() called without challenge or email');
     }
 
-    const authentication = await client.authenticate(credentials, challenge, {
-      authenticatorType: 'both',
-    });
+		const authentication = await client.authenticate({
+			challenge,
+			credentialIds: credentials,
+		} as any);
 
     const authenticateResponse = await authnFetch('/authenticate', {
       method: 'POST',
