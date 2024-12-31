@@ -22,6 +22,7 @@ interface CredentialKey {
   id: string;
   publicKey: string;
   algorithm: 'RS256' | 'ES256';
+  transports: any[];
 }
 interface RegistrationEncoded {
   username: string;

@@ -139,7 +139,7 @@ export async function getVerifiedUserFromEmail(arg: { email: string, origin: str
 export async function getUserFromEmail(email: string, env: AuthnOneEnv): Promise<DurableObjectStub | null> {
   const userID = await env.USERS.get(await emailToUserKey(email));
   if (!userID) return null;
-  return env.USER.get(await env.USER.idFromString(userID));
+  return env.USER.get(env.USER.idFromString(userID));
 }
 
 export function userIsVerified(user: UserInfo | null, email: string): boolean {

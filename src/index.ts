@@ -12,7 +12,7 @@ export { Session } from './session';
  *****************************************/
 // @ts-ignore
 import manifestJSON from '__STATIC_CONTENT_MANIFEST'
-import { RegistrationJSON } from '@passwordless-id/webauthn/dist/esm/types';
+import { AuthenticationResponseJSON, RegistrationJSON } from '@passwordless-id/webauthn/dist/esm/types';
 const assetManifest = JSON.parse(manifestJSON)
 
 // @ts-ignore
@@ -228,7 +228,7 @@ async function handleAPIRequest(url: URL, request: Request, env: AuthnOneEnv, ct
     if (!origin) throw new Error('No origin in register request');
     const { challenge, authentication } = await request.json() as {
       challenge: string,
-      authentication: AuthenticationEncoded
+      authentication: AuthenticationResponseJSON
     };
 
     // copypasta of register
@@ -246,7 +246,9 @@ async function handleAPIRequest(url: URL, request: Request, env: AuthnOneEnv, ct
       console.error('Attempted authentication for non-existent or unverified user ' + sessionInfo.email);
       return new Response('{"error":"authentication invalid"}', { status: 401 });
     }
-    const credential = user.info.credentials.find(x => x.id === authentication.credentialId);
+
+    // TODO: is authentication.id a credential ID???
+    const credential = user.info.credentials.find(x => x.id === authentication.id);
     if (!credential) {
       console.error('Attempted authentication using invalid credentials ' + sessionInfo.email);
       return new Response('{"error":"authentication invalid"}', { status: 401 });
