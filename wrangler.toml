@@ -11,6 +11,9 @@ kv_namespaces = [
 APP_HOST = "https://authn.one"
 ENV = "production"
 
+[observability.logs]
+enabled = true
+
 [durable_objects]
 bindings = [
   {name = "USER", class_name = "User"},

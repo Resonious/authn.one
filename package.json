@@ -8,11 +8,11 @@
 		"start-stackblitz": "WRANGLER_SEND_METRICS=false wrangler dev src/index.ts --local"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^3.0.0",
+		"@cloudflare/workers-types": "*",
 		"cypress": "^12.7.0",
 		"esbuild": "^0.17.10",
 		"vitest": "^0.24.5",
-		"wrangler": "^2.1.14"
+		"wrangler": "^3.99.0"
 	},
 	"dependencies": {
 		"@cloudflare/kv-asset-handler": "^0.3.0",
