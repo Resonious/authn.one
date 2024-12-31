@@ -16,10 +16,15 @@ enabled = true
 
 [durable_objects]
 bindings = [
-  {name = "USER", class_name = "User"},
-  {name = "SESSION", class_name = "Session"},
+  {name = "USER", class_name = "UserDO"},
+  {name = "SESSION", class_name = "SessionDO"},
 ]
 
 [[migrations]]
 tag = "v1"
 new_classes = ["User", "Session"]
+
+[[migrations]]
+tag = "v2"
+deleted_classes = ["User", "Session"]
+new_classes = ["UserDO", "SessionDO"]

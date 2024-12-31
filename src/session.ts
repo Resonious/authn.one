@@ -14,7 +14,7 @@ export type SessionInit = {
   authenticatedUserID?: string
 }
 
-export class Session implements DurableObject {
+export class SessionDO implements DurableObject {
   state: DurableObjectState
   env: AuthnOneEnv
 
