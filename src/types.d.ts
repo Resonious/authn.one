@@ -5,6 +5,7 @@ interface AuthnOneEnv {
   APP_HOST: string,
   ENV: 'development' | 'production',
   DKIM_PRIVATE_KEY: string,
+  FASTMAIL_API_KEY: string,
 }
 
 type AuthCheckResult = {
