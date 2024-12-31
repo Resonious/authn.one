@@ -6,8 +6,6 @@ export async function sendVerificationEmail(email: string, origin: string, sessi
   verifyURL.searchParams.set('session', verifyID);
 
   const originURL = new URL(origin);
-  let fromName = originURL.hostname.split('.').slice(0, -1).join('-');
-  if (!fromName) fromName = originURL.hostname;
 
   await sendEmail(env, {
     subject: `Passwordless login: ${origin}`,
@@ -30,7 +28,7 @@ If you are not trying to log in to ${origin}, you can safely ignore this email.
     },
     to: email,
     from: {
-      email: `${fromName}@${new URL(env.APP_HOST).hostname}`,
+      email: `auth@authn.one`,
       name: `authn.one`,
     },
   });
