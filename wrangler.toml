@@ -1,14 +1,14 @@
-name = "authnone"
+name = "mamamura-auth"
 main = "./src/index.ts"
 compatibility_date = "2022-05-03"
 site = { bucket = "./fdist" }
 
 kv_namespaces = [
-  { binding = "USERS", id = "3f6b7bb519a843df8f5e201b2d19b6d5", preview_id = "345ab6fe79e74ab5803fd39a24f9435f" }
+  { binding = "USERS", id = "f6f81ed4b4f3403abcbf428cf7620d4e" }
 ]
 
 [vars]
-APP_HOST = "https://authn.one"
+APP_HOST = "https://auth.mamamura.jp"
 ENV = "production"
 
 [observability.logs]
