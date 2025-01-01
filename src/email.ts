@@ -8,22 +8,21 @@ export async function sendVerificationEmail(email: string, origin: string, sessi
   const originURL = new URL(origin);
 
   await sendEmail(env, {
-    subject: `Passwordless login: ${origin}`,
+    subject: `ログイン: ${origin}`,
     body: {
       html: `
-If you are trying to log into ${origin}, <a href="${verifyURL}">click here</a> to verify your login.
+${origin} へのログインをされる場合は、<a href="${verifyURL}">こちらをクリックしてください</a>。
 <br><br>
 <a href="${verifyURL}">${verifyURL}</a>
 <br><br>
-If you don't recognize this login attempt, you can safely ignore this email.
+このログイン試行に心当たりがない場合は、このメールを無視していただいて構いません。
 `.trim(),
       text: `
-If you are trying to log into ${origin}, follow the link below:
+${origin} へのログインをされる場合は、以下のリンクをクリックしてください：
 \n
 ${verifyURL}
 \n
-Only click the above link if you are currently trying to log in to ${origin}.
-If you are not trying to log in to ${origin}, you can safely ignore this email.
+このログイン試行に心当たりがない場合は、このメールを無視していただいて構いません。
 `.trim(),
     },
     to: email,

@@ -277,12 +277,12 @@ async function handleAPIRequest(url: URL, request: Request, env: AuthnOneEnv, ct
   if (request.method === 'GET' && url.pathname === '/verify') {
     const verifyID = url.searchParams.get('session');
     const sessionID = await env.USERS.get(`verify:${verifyID}`);
-    if (!verifyID || !sessionID) return new Response("You may have followed a bad link!", { status: 404 });
+    if (!verifyID || !sessionID) return new Response("無効なリンクに辿り着いたようです。", { status: 404 });
 
     const session = env.SESSION.get(env.SESSION.idFromString(sessionID));
     const response = await session.fetch('https://session/verify', { method: 'POST' });
-    if (response.status >= 300) return new Response("You may have followed a bad link!", { status: 404 });
-    return new Response("You're verified! You may close this window now.");
+    if (response.status >= 300) return new Response("無効なリンクに辿り着いたようです。", { status: 404 });
+    return new Response("認証が完了しました。このウィンドウを閉じてください。");
   }
 
   return null;
@@ -317,11 +317,11 @@ async function handleBrowserRequest(url: URL, request: Request, env: AuthnOneEnv
     return await getAssetFromKV(evt(), assetOptions(env, undefined));
   } catch (e) {
     if (e instanceof NotFoundError) {
-      return new Response('Path not found: ' + assetURL.pathname, { status: 404 });
+      return new Response('ページが見つかりませんでした: ' + assetURL.pathname, { status: 404 });
     } else if (e instanceof Error) {
       return new Response(e.message || e.toString(), { status: 500 });
     } else {
-      return new Response('unknown error', { status: 500 });
+      return new Response('不明なエラーが発生しました', { status: 500 });
     }
   }
 }

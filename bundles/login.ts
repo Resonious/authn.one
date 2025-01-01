@@ -40,7 +40,7 @@ class AuthnOneElement extends HTMLElement {
             type="button"
             class="b signin"
             id="sign-in"
-          >Quick Log In</button>
+          >クイックログイン</button>
         </div>
       `;
       root.getElementById('sign-in')!
@@ -49,7 +49,7 @@ class AuthnOneElement extends HTMLElement {
       root.getElementById('main')!.innerHTML = `
         <form id="form">
           <label>
-            <span>Email Address</span>
+            <span>メールアドレス</span>
             <input placeholder="test@example.com" id="email" type="email">
           </label>
 
@@ -58,12 +58,12 @@ class AuthnOneElement extends HTMLElement {
               type="submit"
               class="b signin"
               id="sign-in"
-            >Log In</button>
+            >ログイン</button>
             <button
               type="button"
               class="b register"
               id="register"
-            >Having Trouble?</button>
+            >お困りですか？</button>
           </div>
         </form>
       `;
@@ -100,19 +100,19 @@ class AuthnOneElement extends HTMLElement {
   }
 
   loadingState(root: DocumentFragment) {
-    root.getElementById('main')!.replaceChildren('Authenticating...');
+    root.getElementById('main')!.replaceChildren('認証中...');
   }
 
   emailVerificationState(root: DocumentFragment) {
     root.getElementById('main')!.innerHTML = `
-      <p>We sent a verification email to <span id="email"></span>.
-      Please open the message and click the link.</p>
+	    <p><span id="email"></span>に確認メールを送信しました。
+	    メールを開いてリンクをクリックしてください。</p>
     `;
     root.getElementById('email')!.textContent = this.email ?? 'unknown@unknown';
   }
 
   doneState(root: DocumentFragment) {
-    root.getElementById('main')!.innerHTML = `<p>Authenticated ✅</p>`;
+    root.getElementById('main')!.innerHTML = `<p>認証完了 ✅</p>`;
   }
 
   challenge?: string;
@@ -254,7 +254,7 @@ class AuthnOneElement extends HTMLElement {
   // existing user, or to register a new user. What's the difference!?
   async signup(root: DocumentFragment, _event: Event) {
     if (!client.isAvailable()) {
-      alert("Your browser doesn't support the security features required to sign in.");
+      alert("お使いのブラウザはログインに必要なセキュリティ機能をサポートしていません。");
       return;
     }
 
@@ -272,7 +272,7 @@ class AuthnOneElement extends HTMLElement {
   async signin(root: DocumentFragment, event: SubmitEvent) {
     event.preventDefault();
     if (!client.isAvailable()) {
-      alert("Your browser doesn't support the security features required to sign in.");
+      alert("お使いのブラウザはログインに必要なセキュリティ機能をサポートしていません。");
       return;
     }
 
