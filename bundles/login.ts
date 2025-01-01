@@ -334,11 +334,9 @@ class AuthnOneElement extends HTMLElement {
       throw new Error('register() called without challenge or email');
     }
 
-    const registration = await client.register({
-	    hints: ["client-device"],
-			user: email,
-			challenge,
-		});
+    const registration = await client.register(email, challenge, {
+      authenticatorType: 'both',
+    });
 
     const registerResult = await authnFetch('/register', {
       method: 'POST',
@@ -375,10 +373,9 @@ class AuthnOneElement extends HTMLElement {
       throw new Error('register() called without challenge or email');
     }
 
-		const authentication = await client.authenticate({
-			challenge,
-			credentialIds: credentials,
-		} as any);
+    const authentication = await client.authenticate(credentials, challenge, {
+      authenticatorType: 'both',
+    });
 
     const authenticateResponse = await authnFetch('/authenticate', {
       method: 'POST',

@@ -5,7 +5,6 @@ interface AuthnOneEnv {
   APP_HOST: string,
   ENV: 'development' | 'production',
   DKIM_PRIVATE_KEY: string,
-  FASTMAIL_API_KEY: string,
 }
 
 type AuthCheckResult = {
@@ -22,7 +21,6 @@ interface CredentialKey {
   id: string;
   publicKey: string;
   algorithm: 'RS256' | 'ES256';
-  transports: any[];
 }
 interface RegistrationEncoded {
   username: string;
