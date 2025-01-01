@@ -7,3 +7,4 @@
 /dist
 /fdist/*.js
 /fdist/*.js.map
+config.bat
