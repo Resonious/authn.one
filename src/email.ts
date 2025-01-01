@@ -27,8 +27,8 @@ ${verifyURL}
     },
     to: email,
     from: {
-      email: `auth@authn.one`,
-      name: `authn.one`,
+      email: `auth@mamamura.jp`,
+      name: `ママ村`,
     },
   });
 }
